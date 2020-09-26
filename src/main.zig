@@ -71,10 +71,14 @@ fn cycle() !void {
         0x0000 => {
             switch (opcode & 0x000F) {
                 0x0000 => { // 0x00E0: clear the screen
-                    // TODO (james): implement this
+                    for (gfx) |*px| {
+                        px.* = 0;
+                    }
+                    pc += 2;
                 },
                 0x000E => { // 0x00EE: return from subroutine
-                    // TODO (james): implement me!!!
+                    pc = stack[sp];
+                    sp -= 1;
                 },
                 else => {
                     @panic("Invalid opcode [0x0000]: {}\n");
