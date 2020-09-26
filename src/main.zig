@@ -54,10 +54,18 @@ fn cycle() !void {
             I = opcode & 0x0FFF;
             pc += 2;
         },
-        0x2000 => {
+        0x1000 => { // jump
+            pc = opcode & 0x0FFF;
+        },
+        0x2000 => { // call
             stack[sp] = pc;
             sp += 1;
             pc = opcode & 0x0FFF;
+        },
+        0x3000 => { // jumpif
+            const i: u8 = (opcode & 0x00F0) >> 4;
+            const kk: u8 = opcode & 0x00FF;
+            if (V[i] == 2) pc += 2;
         },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
@@ -70,13 +78,13 @@ fn cycle() !void {
         },
         0x0000 => {
             switch (opcode & 0x000F) {
-                0x0000 => { // 0x00E0: clear the screen
+                0x0000 => { // clear screen
                     for (gfx) |*px| {
                         px.* = 0;
                     }
                     pc += 2;
                 },
-                0x000E => { // 0x00EE: return from subroutine
+                0x000E => { // return
                     pc = stack[sp];
                     sp -= 1;
                 },
