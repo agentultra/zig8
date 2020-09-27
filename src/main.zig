@@ -90,11 +90,28 @@ fn cycle() !void {
                 pc += 2;
             }
         },
-        0x6000 => {
+        0x6000 => { // register set
             const i: u8 = (opcode & 0x0F00) >> 8;
             const kk: u8 = opcode & 0x00FF;
             V[i] = kk;
             pc += 2;
+        },
+        0x7000 => { // register add
+            const i: u8 = (opcode & 0x0F00) >> 8;
+            const kk: u8 = opcode & 0x00FF;
+            const result: u8 = V[i] + result;
+            V[i] = result;
+            pc += 2;
+        },
+        0x8000 => {
+            switch (opcode & 0x000F) {
+                0x0000 => { //register flip
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    V[x] = V[y];
+                    pc += 2;
+                },
+            }
         },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
