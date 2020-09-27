@@ -1,5 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
+const assert = std.debug.assert;
 
 // Machine
 
@@ -63,9 +64,37 @@ fn cycle() !void {
             pc = opcode & 0x0FFF;
         },
         0x3000 => { // jumpif
-            const i: u8 = (opcode & 0x00F0) >> 4;
+            const i: u8 = (opcode & 0x0F00) >> 8;
             const kk: u8 = opcode & 0x00FF;
-            if (V[i] == 2) pc += 2;
+            if (V[i] == kk) {
+                pc += 4;
+            } else {
+                pc += 2;
+            }
+        },
+        0x4000 => { // skip next if
+            const i: u8 = (opcode & 0x0F00) >> 8;
+            const kk: u8 = opcode & 0x00FF;
+            if (V[i] != kk) {
+                pc += 4;
+            } else {
+                pc += 2;
+            }
+        },
+        0x5000 => { // skip if registers equal
+            const i: u8 = (opcode & 0x00F0) >> 4;
+            const j: u8 = (opcode & 0x0F00) >> 8;
+            if (V[i] == V[j]) {
+                pc += 4;
+            } else {
+                pc += 2;
+            }
+        },
+        0x6000 => {
+            const i: u8 = (opcode & 0x0F00) >> 8;
+            const kk: u8 = opcode & 0x00FF;
+            V[i] = kk;
+            pc += 2;
         },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
