@@ -111,6 +111,75 @@ fn cycle() !void {
                     V[x] = V[y];
                     pc += 2;
                 },
+                0x0001 => { //register OR
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    V[x] = V[x] | V[y];
+                    pc += 2;
+                },
+                0x0002 => { //register AND
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    V[x] = V[x] & V[y];
+                    pc += 2;
+                },
+                0x0003 => { //register XOR
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    V[x] = V[x] ^ V[y];
+                    pc += 2;
+                },
+                0x0004 => { //register ADD
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    if (V[x] + V[y] > 0xFF) {
+                        V[0xF] = 1; // carry
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    V[x] += V[y];
+                    pc += 2;
+                },
+                0x0005 => { //register SUB
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    if (V[x] > V[y]) {
+                        V[0xF] = 1; // borrow
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    V[x] -= V[y];
+                    pc += 2;
+                },
+                0x0006 => { //register SHR
+                    if (V[x] & 1) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    V[x] /= 2;
+                    pc += 2;
+                },
+                0x0007 => { //register SUBN
+                    const x: u8 = (opcode & 0x0F00) >> 8;
+                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    if (V[y] > V[x]) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    V[x] = V[y] - V[x];
+                    pc += 2;
+                },
+                0x000E => {
+                    if (V[x] & 1) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    V[x] *%= 2;
+                    pc += 2;
+                },
             }
         },
         0x0004 => {
