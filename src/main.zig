@@ -2,6 +2,11 @@ const std = @import("std");
 const testing = std.testing;
 const assert = std.debug.assert;
 
+const c = @cImport({
+    @cDefine("_NO_CRT_STDIO_INLINE", "1");
+    @cInclude("stdlib.h");
+});
+
 // Machine
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
@@ -181,6 +186,44 @@ fn cycle() !void {
                     pc += 2;
                 },
             }
+        },
+        0x9000 => {
+            if (V[(opcode & 0x00F0) >> 4] != (0xFF - V[(opcode & 0x0F00) >> 8])) {
+                pc += 4;
+            }
+            pc += 2;
+        },
+        0xB000 => {
+            pc = (opcode & 0x0FFF) + V[0];
+        },
+        0xC000 => {
+            V[(opcode & 0x0F00) >> 8] = (c.rand() % 0xFF) & (opcode & 0x00FF);
+            pc += 2;
+        },
+        0xD000 => {
+            const x: u8 = V[(opcode & 0x0F00) >> 8];
+            const y: u8 = V[(opcode & 0x00F0) >> 4];
+            const h: u8 = opcode & 0x000F;
+            const pix: u8;
+
+            V[0xF] = 0;
+            const yline: int = 0;
+            const xline: int = 0;
+            while (yline < h) {
+                pix = memory[I + yline];
+                xline = 0;
+                while (xline < 8) {
+                    if ((pix & (0x80 >> xline)) != 0) {
+                        if (gfx[(x + xline + ((y + yline) * 64))] == 1)
+                            V[0xF] = 1;
+                        gfx[x + xline + ((y + yline) * 64)] ^= 1;
+                    }
+                    xline += 1;
+                }
+                yline += 1;
+            }
+            drawFlag = true;
+            pc += 2;
         },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
