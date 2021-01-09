@@ -228,6 +228,20 @@ fn cycle() !void {
             drawFlag = true;
             pc += 2;
         },
+        0xE000 => {
+            switch (opcode & 0x00FF) {
+                0x009E => {
+                    if (keys[(opcode & 0x0F00) >> 8]) {
+                        pc += 2;
+                    }
+                },
+                0x00A1 => {
+                    if (!keys[(opcode & 0x0F00) >> 8]) {
+                        pc += 2;
+                    }
+                },
+            }
+        },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
                 V[0xF] = 1; // carry
