@@ -193,6 +193,9 @@ fn cycle() !void {
             }
             pc += 2;
         },
+        0xA000 => {
+            I = opcode & 0x0FFF;
+        },
         0xB000 => {
             pc = (opcode & 0x0FFF) + V[0];
         },
