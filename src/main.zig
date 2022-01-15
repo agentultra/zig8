@@ -242,6 +242,79 @@ fn cycle() !void {
                 },
             }
         },
+        0xF000 => {
+            switch (opcode & 0x00FF) {
+                // LD Vx, DT
+                0x0007 => {
+                    V[(opcode & 0x0F00) >> 8] = delay_timer;
+                    pc += 2;
+                },
+                // LD Vx, K
+                0x000A => {
+                    var keyPress: bool = false;
+                    var i: uint = 0;
+                    while (i < 16) {
+                        if (keys[i] != 0) {
+                            V[(opcode & 0x0F00) >> 8] = i;
+                            keyPress = true;
+                        }
+                        i += 1;
+                    }
+                    if (!keyPress) return;
+                    pc += 2;
+                },
+                // LD DT, Vx
+                0x0015 => {
+                    delay_timer = V[(opcode & 0x0F00) >> 8];
+                    pc += 2;
+                },
+                // LD ST, Vx
+                0x0018 => {
+                    sound_timer = V[(opcode & 0xF00) >> 8];
+                    pc += 2;
+                },
+                // ADD I, Vx
+                0x001E => {
+                    if (I + V[(opcode & 0x0F00) >> 8] > 0xFFF) {
+                        V[0xF] = 1; // there was an overflow
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    I = I + V[(opcode & 0x0F00) >> 8];
+                    pc += 2;
+                },
+                // LD F, Vx
+                0x0029 => {
+                    I = V[(opcode & 0x0F00) >> 8] * 0x5;
+                    pc += 2;
+                },
+                // LD B, Vx
+                0x0033 => {
+                    memory[I] = V[(opcode & 0x0F00) >> 8] / 100;
+                    memory[I + 1] = (V[(opcode & 0x0F00) >> 8] / 10) % 10;
+                    memory[I + 2] = (V[(opcode & 0x0F00) >> 8] % 100) % 10;
+                    pc += 2;
+                },
+                // LD [I], Vx
+                0x0055 => {
+                    var i: u8 = 0x0;
+                    while (i <= (opcode & 0x0F00) >> 8) {
+                        memory[I + i] = V[i];
+                        i += 1;
+                    }
+                    pc += 2;
+                },
+                // LD Vx, [I]
+                0x0065 => {
+                    var i: u8 = 0x0;
+                    while (i <= (opcode & 0x0F00) >> 8) {
+                        V[i] = memory[I + v];
+                        i += 1;
+                    }
+                    pc += 2;
+                },
+            }
+        },
         0x0004 => {
             if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
                 V[0xF] = 1; // carry
