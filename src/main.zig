@@ -7,6 +7,8 @@ const c = @cImport({
     @cInclude("stdlib.h");
 });
 
+const stdout = std.io.getStdOut().writer();
+
 // Machine
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
@@ -104,7 +106,7 @@ fn cycle() !void {
         0x7000 => { // register add
             const i: u8 = (opcode & 0x0F00) >> 8;
             const kk: u8 = opcode & 0x00FF;
-            const result: u8 = V[i] + result;
+            const result: u8 = V[i] + kk;
             V[i] = result;
             pc += 2;
         },
@@ -157,6 +159,7 @@ fn cycle() !void {
                     pc += 2;
                 },
                 0x0006 => { //register SHR
+                    const x: u8 = (opcode & 0x0F00) >> 8;
                     if (V[x] & 1) {
                         V[0xF] = 1;
                     } else {
@@ -177,6 +180,7 @@ fn cycle() !void {
                     pc += 2;
                 },
                 0x000E => {
+                    const x: u8 = (opcode & 0x0F00) >> 8;
                     if (V[x] & 1) {
                         V[0xF] = 1;
                     } else {
@@ -207,11 +211,12 @@ fn cycle() !void {
             const x: u8 = V[(opcode & 0x0F00) >> 8];
             const y: u8 = V[(opcode & 0x00F0) >> 4];
             const h: u8 = opcode & 0x000F;
-            const pix: u8;
+            const pix: u8 = 0;
+            const drawFlag: bool = false;
 
             V[0xF] = 0;
-            const yline: int = 0;
-            const xline: int = 0;
+            const yline: u8 = 0;
+            const xline: u8 = 0;
             while (yline < h) {
                 pix = memory[I + yline];
                 xline = 0;
@@ -252,7 +257,7 @@ fn cycle() !void {
                 // LD Vx, K
                 0x000A => {
                     var keyPress: bool = false;
-                    var i: uint = 0;
+                    var i: u8 = 0;
                     while (i < 16) {
                         if (keys[i] != 0) {
                             V[(opcode & 0x0F00) >> 8] = i;
@@ -307,7 +312,8 @@ fn cycle() !void {
                 // LD Vx, [I]
                 0x0065 => {
                     var i: u8 = 0x0;
-                    while (i <= (opcode & 0x0F00) >> 8) {
+                    var v: u8 = (opcode & 0x0F00) >> 8;
+                    while (i <= v) {
                         V[i] = memory[I + v];
                         i += 1;
                     }
@@ -342,13 +348,13 @@ fn cycle() !void {
             }
         },
         else => {
-            @panic("Invalid opcode: {}\n", opcode);
+            @panic("Invalid opcode: {}\n");
         },
     }
 
     if (delay_timer > 0) --delay_timer;
     if (sound_timer > 0) {
-        @print("BEEEEEP\n");
+        stdout.print("BEEEEEP\n");
         --sound_timer;
     }
 }
