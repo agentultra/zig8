@@ -3,6 +3,8 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 
+extern fn initialize() void;
+
 pub fn main() !void {
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
         c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
@@ -22,6 +24,8 @@ pub fn main() !void {
         return error.SDLInitializationFailed;
     };
     defer c.SDL_DestroyRenderer(renderer);
+
+    initialize();
 
     var running = true;
 

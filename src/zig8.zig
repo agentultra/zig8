@@ -30,31 +30,31 @@ var sound_timer: u16 = undefined;
 
 // Emulation API
 
-fn initialize() !void {
+export fn initialize() void {
     opcode = 0;
     pc = 0x200;
-    for (memory) |*loc| {
+    for (&memory) |*loc| {
         loc.* = 0;
     }
-    for (V) |*reg| {
+    for (&V) |*reg| {
         reg.* = 0;
     }
     I = 0;
-    for (stack) |*s| {
+    for (&stack) |*s| {
         s.* = 0;
     }
     sp = 0;
-    for (gfx) |*px| {
+    for (&gfx) |*px| {
         px.* = 0;
     }
-    for (keys) |*key| {
+    for (&keys) |*key| {
         key.* = 0;
     }
     delay_timer = 0;
     sound_timer = 0;
 }
 
-fn cycle() !void {
+pub fn cycle() !void {
     opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
 
     switch (opcode & 0xF000) {
