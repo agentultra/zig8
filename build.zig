@@ -14,6 +14,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    lib.linkLibC();
+
     const exe = b.addExecutable(.{
         .name = "zig8",
         .root_module = b.createModule(.{

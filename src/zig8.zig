@@ -25,8 +25,10 @@ var sp: u16 = undefined; // stack pointer
 var gfx: [2048]u8 = undefined; // graphics memory
 var keys: [16]u8 = undefined; // keys
 
-var delay_timer: u16 = undefined; // count at 60hz down to zero
+var delay_timer: u8 = undefined; // count at 60hz down to zero
 var sound_timer: u16 = undefined;
+
+const pixMask: u8 = 0x80;
 
 // Emulation API
 
@@ -54,7 +56,7 @@ export fn initialize() void {
     sound_timer = 0;
 }
 
-pub fn cycle() !void {
+export fn cycle() void {
     opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
 
     switch (opcode & 0xF000) {
@@ -71,8 +73,8 @@ pub fn cycle() !void {
             pc = opcode & 0x0FFF;
         },
         0x3000 => { // jumpif
-            const i: u8 = (opcode & 0x0F00) >> 8;
-            const kk: u8 = opcode & 0x00FF;
+            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
             if (V[i] == kk) {
                 pc += 4;
             } else {
@@ -80,8 +82,8 @@ pub fn cycle() !void {
             }
         },
         0x4000 => { // skip next if
-            const i: u8 = (opcode & 0x0F00) >> 8;
-            const kk: u8 = opcode & 0x00FF;
+            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
             if (V[i] != kk) {
                 pc += 4;
             } else {
@@ -89,8 +91,8 @@ pub fn cycle() !void {
             }
         },
         0x5000 => { // skip if registers equal
-            const i: u8 = (opcode & 0x00F0) >> 4;
-            const j: u8 = (opcode & 0x0F00) >> 8;
+            const i: u8 = @intCast((opcode & 0x00F0) >> 4);
+            const j: u8 = @intCast((opcode & 0x0F00) >> 8);
             if (V[i] == V[j]) {
                 pc += 4;
             } else {
@@ -98,14 +100,14 @@ pub fn cycle() !void {
             }
         },
         0x6000 => { // register set
-            const i: u8 = (opcode & 0x0F00) >> 8;
-            const kk: u8 = opcode & 0x00FF;
+            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
             V[i] = kk;
             pc += 2;
         },
         0x7000 => { // register add
-            const i: u8 = (opcode & 0x0F00) >> 8;
-            const kk: u8 = opcode & 0x00FF;
+            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
             const result: u8 = V[i] + kk;
             V[i] = result;
             pc += 2;
@@ -113,32 +115,32 @@ pub fn cycle() !void {
         0x8000 => {
             switch (opcode & 0x000F) {
                 0x0000 => { //register flip
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     V[x] = V[y];
                     pc += 2;
                 },
                 0x0001 => { //register OR
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     V[x] = V[x] | V[y];
                     pc += 2;
                 },
                 0x0002 => { //register AND
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     V[x] = V[x] & V[y];
                     pc += 2;
                 },
                 0x0003 => { //register XOR
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     V[x] = V[x] ^ V[y];
                     pc += 2;
                 },
                 0x0004 => { //register ADD
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     if (V[x] + V[y] > 0xFF) {
                         V[0xF] = 1; // carry
                     } else {
@@ -148,8 +150,8 @@ pub fn cycle() !void {
                     pc += 2;
                 },
                 0x0005 => { //register SUB
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     if (V[x] > V[y]) {
                         V[0xF] = 1; // borrow
                     } else {
@@ -159,8 +161,8 @@ pub fn cycle() !void {
                     pc += 2;
                 },
                 0x0006 => { //register SHR
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    if (V[x] & 1) {
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    if (V[x] & 1 == 1) {
                         V[0xF] = 1;
                     } else {
                         V[0xF] = 0;
@@ -169,8 +171,8 @@ pub fn cycle() !void {
                     pc += 2;
                 },
                 0x0007 => { //register SUBN
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    const y: u8 = (opcode & 0x00F0) >> 4;
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     if (V[y] > V[x]) {
                         V[0xF] = 1;
                     } else {
@@ -180,14 +182,17 @@ pub fn cycle() !void {
                     pc += 2;
                 },
                 0x000E => {
-                    const x: u8 = (opcode & 0x0F00) >> 8;
-                    if (V[x] & 1) {
+                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
+                    if (V[x] & 1 == 1) {
                         V[0xF] = 1;
                     } else {
                         V[0xF] = 0;
                     }
                     V[x] *%= 2;
                     pc += 2;
+                },
+                else => {
+                    @panic("Invalid opcode [0x0800]: {}\n");
                 },
             }
         },
@@ -197,31 +202,30 @@ pub fn cycle() !void {
             }
             pc += 2;
         },
-        0xA000 => {
-            I = opcode & 0x0FFF;
-        },
         0xB000 => {
             pc = (opcode & 0x0FFF) + V[0];
         },
         0xC000 => {
-            V[(opcode & 0x0F00) >> 8] = (c.rand() % 0xFF) & (opcode & 0x00FF);
+            const r: u8 = @intCast(@mod(c.rand(), 0xFF));
+            const v: u8 = @intCast(opcode & 0x00FF);
+            V[(opcode & 0x0F00) >> 8] = r & v;
             pc += 2;
         },
         0xD000 => {
             const x: u8 = V[(opcode & 0x0F00) >> 8];
             const y: u8 = V[(opcode & 0x00F0) >> 4];
-            const h: u8 = opcode & 0x000F;
-            const pix: u8 = 0;
-            const drawFlag: bool = false;
+            const h: u8 = @intCast(opcode & 0x000F);
+            var pix: u8 = 0;
+            var drawFlag: bool = false;
 
             V[0xF] = 0;
-            const yline: u8 = 0;
-            const xline: u8 = 0;
+            var yline: u8 = 0;
+            var xline: u3 = 0;
             while (yline < h) {
                 pix = memory[I + yline];
                 xline = 0;
                 while (xline < 8) {
-                    if ((pix & (0x80 >> xline)) != 0) {
+                    if ((pix & (pixMask >> xline)) != 0) {
                         if (gfx[(x + xline + ((y + yline) * 64))] == 1)
                             V[0xF] = 1;
                         gfx[x + xline + ((y + yline) * 64)] ^= 1;
@@ -236,14 +240,17 @@ pub fn cycle() !void {
         0xE000 => {
             switch (opcode & 0x00FF) {
                 0x009E => {
-                    if (keys[(opcode & 0x0F00) >> 8]) {
+                    if (keys[(opcode & 0x0F00) >> 8] == 1) {
                         pc += 2;
                     }
                 },
                 0x00A1 => {
-                    if (!keys[(opcode & 0x0F00) >> 8]) {
+                    if (keys[(opcode & 0x0F00) >> 8] != 1) {
                         pc += 2;
                     }
+                },
+                else => {
+                    @panic("Invalid opcode [0xE000]: {}\n");
                 },
             }
         },
@@ -312,12 +319,15 @@ pub fn cycle() !void {
                 // LD Vx, [I]
                 0x0065 => {
                     var i: u8 = 0x0;
-                    const v: u8 = (opcode & 0x0F00) >> 8;
+                    const v: u8 = @intCast((opcode & 0x0F00) >> 8);
                     while (i <= v) {
                         V[i] = memory[I + v];
                         i += 1;
                     }
                     pc += 2;
+                },
+                else => {
+                    @panic("Invalid opcode [0xF000]: {}\n");
                 },
             }
         },
@@ -333,7 +343,7 @@ pub fn cycle() !void {
         0x0000 => {
             switch (opcode & 0x000F) {
                 0x0000 => { // clear screen
-                    for (gfx) |*px| {
+                    for (&gfx) |*px| {
                         px.* = 0;
                     }
                     pc += 2;
@@ -352,9 +362,11 @@ pub fn cycle() !void {
         },
     }
 
-    if (delay_timer > 0) --delay_timer;
+    if (delay_timer > 0) {
+        delay_timer = delay_timer - 1;
+    }
     if (sound_timer > 0) {
-        stdout.print("BEEEEEP\n");
-        --sound_timer;
+        //std.fs.File.writer(std.io.getStdOut()).writeAll("BEEEP!\n");
+        sound_timer = sound_timer - 1;
     }
 }
