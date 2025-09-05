@@ -370,3 +370,11 @@ export fn cycle() void {
         sound_timer = sound_timer - 1;
     }
 }
+
+export fn keypress(k: u8) void {
+    keys[k] = 1;
+}
+
+export fn keyrelease(k: u8) void {
+    keys[k] = 0;
+}
