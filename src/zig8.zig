@@ -22,7 +22,7 @@ var I: u16 = undefined; // index register
 var pc: u16 = undefined; // program counter
 var stack: [16]u16 = undefined; // program stack
 var sp: u16 = undefined; // stack pointer
-var gfx: [2048]u8 = undefined; // graphics memory
+pub var gfx: [2048]u8 = undefined; // graphics memory
 var keys: [16]u8 = undefined; // keys
 
 var delay_timer: u8 = undefined; // count at 60hz down to zero

@@ -4,6 +4,9 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 
+const screen_w = 62;
+const screen_h = 30;
+
 pub fn main() !void {
     var args = std.process.args();
     defer args.deinit();
@@ -57,6 +60,17 @@ pub fn main() !void {
             }
         }
         _ = c.SDL_RenderClear(renderer);
+        _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        for (0..screen_w) |x| {
+            for (0..screen_h) |y| {
+                const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
+                if (pixel_active) {
+                    const p: c.SDL_Rect = .{ .x = @as(c_int, @intCast(x * 4)), .y = @as(c_int, @intCast(y * 4)), .w = 4, .h = 4 };
+                    _ = c.SDL_RenderFillRect(renderer, &p);
+                }
+            }
+        }
+        _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         c.SDL_RenderPresent(renderer);
         c.SDL_Delay(30);
     }
