@@ -32,13 +32,13 @@ const pixMask: u8 = 0x80;
 
 // Emulation API
 
-export fn initialize() void {
+pub fn initialize() void {
     opcode = 0;
     pc = 0x200;
     for (&memory) |*loc| {
         loc.* = 0;
     }
-    for (0x00..0x1FF) |i| {
+    for (0..79) |i| {
         memory[i] = fontset[i];
     }
     for (&V) |*reg| {
@@ -59,7 +59,7 @@ export fn initialize() void {
     sound_timer = 0;
 }
 
-export fn cycle() void {
+pub fn cycle() void {
     opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
 
     switch (opcode & 0xF000) {
@@ -374,12 +374,25 @@ export fn cycle() void {
     }
 }
 
-export fn keypress(k: u8) void {
+pub fn keypress(k: u8) void {
     keys[k] = 1;
 }
 
-export fn keyrelease(k: u8) void {
+pub fn keyrelease(k: u8) void {
     keys[k] = 0;
+}
+
+pub fn load(path: []const u8) !void {
+    const cwd = std.fs.cwd();
+    const file = try cwd.openFile(path, .{ .mode = .read_only });
+    defer file.close();
+
+    var buf: [3896]u8 = undefined;
+    const len = try file.readAll(buf[0..]);
+
+    for (0..len) |i| {
+        memory[200 + i] = buf[i];
+    }
 }
 
 const fontset = [80]u8{
