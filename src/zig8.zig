@@ -38,6 +38,9 @@ export fn initialize() void {
     for (&memory) |*loc| {
         loc.* = 0;
     }
+    for (0x00..0x1FF) |i| {
+        memory[i] = fontset[i];
+    }
     for (&V) |*reg| {
         reg.* = 0;
     }
