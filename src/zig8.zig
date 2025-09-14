@@ -161,7 +161,7 @@ pub fn cycle() void {
                     } else {
                         V[0xF] = 0;
                     }
-                    V[x] -= V[y];
+                    V[x] = x - y;
                     pc += 2;
                 },
                 0x0006 => { //register SHR
