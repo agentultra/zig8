@@ -413,7 +413,3 @@ const fontset = [80]u8{
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 };
-
-fn range(len: usize) []const void {
-    return @as([*]void, undefined)[0..len];
-}
