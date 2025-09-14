@@ -144,12 +144,13 @@ pub fn cycle() void {
                 0x0004 => { //register ADD
                     const x: u8 = @intCast((opcode & 0x0F00) >> 8);
                     const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    if (V[x] + V[y] > 0xFF) {
+                    const xy: u16 = x + y;
+                    if (xy > 0xFF) {
                         V[0xF] = 1; // carry
                     } else {
                         V[0xF] = 0;
                     }
-                    V[x] += V[y];
+                    V[x] = @intCast((xy & 0x00FF) >> 8);
                     pc += 2;
                 },
                 0x0005 => { //register SUB
