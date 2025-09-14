@@ -220,23 +220,22 @@ pub fn cycle() void {
             const y: u8 = V[(opcode & 0x00F0) >> 4];
             const h: u8 = @intCast(opcode & 0x000F);
             var pix: u8 = 0;
+            var xline: u3 = 0;
             var drawFlag: bool = false;
 
             V[0xF] = 0;
-            var yline: u8 = 0;
-            var xline: u3 = 0;
-            while (yline < h) {
+            for (0..(h - 1)) |yline| {
                 pix = memory[I + yline];
                 xline = 0;
-                while (xline < 8) {
-                    if ((pix & (pixMask >> xline)) != 0) {
-                        if (gfx[(x + xline + ((y + yline) * 64))] == 1)
+                while (xline < 7) : (xline += 1) {
+                    const pixBase: u8 = 0x80;
+                    if ((pix & (pixBase >> xline)) != 0) {
+                        if (gfx[(x + xline + ((y + yline) * 64))] == 1) {
                             V[0xF] = 1;
+                        }
                         gfx[x + xline + ((y + yline) * 64)] ^= 1;
                     }
-                    xline += 1;
                 }
-                yline += 1;
             }
             drawFlag = true;
             pc += 2;
@@ -414,3 +413,7 @@ const fontset = [80]u8{
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 };
+
+fn range(len: usize) []const void {
+    return @as([*]void, undefined)[0..len];
+}
