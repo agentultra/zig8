@@ -22,6 +22,7 @@ var I: u16 = undefined; // index register
 var pc: u16 = undefined; // program counter
 var stack: [16]u16 = undefined; // program stack
 var sp: u16 = undefined; // stack pointer
+pub var draw_flag: bool = undefined; // when true after one cycle, render
 pub var gfx: [2048]u8 = undefined; // graphics memory
 var keys: [16]u8 = undefined; // keys
 
@@ -37,7 +38,7 @@ pub fn initialize() void {
     for (&memory) |*loc| {
         loc.* = 0;
     }
-    for (0..79) |i| {
+    for (0..80) |i| {
         memory[0x50 + i] = fontset[i];
     }
     for (&V) |*reg| {
@@ -48,6 +49,7 @@ pub fn initialize() void {
         s.* = 0;
     }
     sp = 0;
+    draw_flag = false;
     for (&gfx) |*px| {
         px.* = 0;
     }
@@ -59,310 +61,58 @@ pub fn initialize() void {
 }
 
 pub fn cycle() void {
-    opcode = memory[pc];
-    std.debug.print("Opcode: 0x{X:0>4}\n", .{opcode});
+    opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
+
+    pc += 2;
 
     switch (opcode & 0xF000) {
+        0x00E0 => { // CLEAR
+            for (&gfx) |*px| {
+                px.* = 0;
+            }
+        },
+        0x1000 => {
+            const nnn: u16 = @intCast(opcode & 0x0FFF);
+            pc = nnn;
+        },
+        0x6000 => {
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
+            V[x] = kk;
+        },
         0xA000 => {
-            I = opcode & 0x0FFF;
-            pc += 2;
-        },
-        0x1000 => { // jump
-            pc = opcode & 0x0FFF;
-        },
-        0x2000 => { // call
-            stack[sp] = pc;
-            sp += 1;
-            pc = opcode & 0x0FFF;
-        },
-        0x3000 => { // jumpif
-            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
-            const kk: u8 = @intCast(opcode & 0x00FF);
-            if (V[i] == kk) {
-                pc += 4;
-            } else {
-                pc += 2;
-            }
-        },
-        0x4000 => { // skip next if
-            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
-            const kk: u8 = @intCast(opcode & 0x00FF);
-            if (V[i] != kk) {
-                pc += 4;
-            } else {
-                pc += 2;
-            }
-        },
-        0x5000 => { // skip if registers equal
-            const i: u8 = @intCast((opcode & 0x00F0) >> 4);
-            const j: u8 = @intCast((opcode & 0x0F00) >> 8);
-            if (V[i] == V[j]) {
-                pc += 4;
-            } else {
-                pc += 2;
-            }
-        },
-        0x6000 => { // register set
-            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
-            const kk: u8 = @intCast(opcode & 0x00FF);
-            V[i] = kk;
-            pc += 2;
-        },
-        0x7000 => { // register add
-            const i: u8 = @intCast((opcode & 0x0F00) >> 8);
-            const kk: u8 = @intCast(opcode & 0x00FF);
-            const result: u8 = V[i] + kk;
-            V[i] = result;
-            pc += 2;
-        },
-        0x8000 => {
-            switch (opcode & 0x000F) {
-                0x0000 => { //register flip
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    V[x] = V[y];
-                    pc += 2;
-                },
-                0x0001 => { //register OR
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    V[x] = V[x] | V[y];
-                    pc += 2;
-                },
-                0x0002 => { //register AND
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    V[x] = V[x] & V[y];
-                    pc += 2;
-                },
-                0x0003 => { //register XOR
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    V[x] = V[x] ^ V[y];
-                    pc += 2;
-                },
-                0x0004 => { //register ADD
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    const xy: u16 = x + y;
-                    if (xy > 0xFF) {
-                        V[0xF] = 1; // carry
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    V[x] = @intCast((xy & 0x00FF) >> 8);
-                    pc += 2;
-                },
-                0x0005 => { //register SUB
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    if (V[x] > V[y]) {
-                        V[0xF] = 1; // borrow
-                        V[x] = V[x] - V[y];
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    pc += 2;
-                },
-                0x0006 => { //register SHR
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    if (V[x] & 1 == 1) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    V[x] /= 2;
-                    pc += 2;
-                },
-                0x0007 => { //register SUBN
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    const y: u8 = @intCast((opcode & 0x00F0) >> 4);
-                    if (V[y] > V[x]) {
-                        V[0xF] = 1;
-                        V[x] = V[y] - V[x];
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    pc += 2;
-                },
-                0x000E => {
-                    const x: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    if (V[x] & 1 == 1) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    V[x] *%= 2;
-                    pc += 2;
-                },
-                else => {
-                    @panic("Invalid opcode [0x0800]: {}\n");
-                },
-            }
-        },
-        0x9000 => {
-            if (V[(opcode & 0x00F0) >> 4] != (0xFF - V[(opcode & 0x0F00) >> 8])) {
-                pc += 4;
-            }
-            pc += 2;
-        },
-        0xB000 => {
-            pc = (opcode & 0x0FFF) + V[0];
-        },
-        0xC000 => {
-            const r: u8 = @intCast(@mod(c.rand(), 0xFF));
-            const v: u8 = @intCast(opcode & 0x00FF);
-            V[(opcode & 0x0F00) >> 8] = r & v;
-            pc += 2;
+            const nnn: u12 = @intCast(opcode & 0x0FFF);
+            I = nnn;
         },
         0xD000 => {
-            const x: u8 = V[(opcode & 0x0F00) >> 8];
-            const y: u8 = V[(opcode & 0x00F0) >> 4];
-            const h: u8 = @intCast(opcode & 0x000F);
-            var pix: u8 = 0;
-            var xline: u3 = 0;
-            var drawFlag: bool = false;
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            const n: u4 = @intCast(opcode & 0x000F);
 
+            const dx = V[x] & 63;
+            const dy = V[y] & 31;
             V[0xF] = 0;
-            for (0..(h - 1)) |yline| {
-                pix = memory[I + yline];
-                xline = 0;
-                while (xline < 7) : (xline += 1) {
-                    const pixBase: u8 = 0x80;
-                    if ((pix & (pixBase >> xline)) != 0) {
-                        if (gfx[(x + xline + ((y + yline) * 64))] == 1) {
+
+            var row: u8 = 0;
+            while (row < n) : (row += 1) {
+                const pixel: u8 = memory[I + row];
+                var col: u4 = 0;
+                while (col < 8) : (col += 1) {
+                    const base: u16 = 0x80;
+                    if ((pixel & (base >> col)) != 0) {
+                        const w: u32 = 64;
+                        const i: u32 = (dy + row) * w;
+                        const ix: u64 = i + dx + col;
+                        if (gfx[ix] == 1) {
                             V[0xF] = 1;
                         }
-                        gfx[x + xline + ((y + yline) * 64)] ^= 1;
+                        gfx[ix] ^= 1;
                     }
                 }
             }
-            drawFlag = true;
-            pc += 2;
+            draw_flag = true;
         },
-        0xE000 => {
-            switch (opcode & 0x00FF) {
-                0x009E => {
-                    if (keys[(opcode & 0x0F00) >> 8] == 1) {
-                        pc += 2;
-                    }
-                },
-                0x00A1 => {
-                    if (keys[(opcode & 0x0F00) >> 8] != 1) {
-                        pc += 2;
-                    }
-                },
-                else => {
-                    @panic("Invalid opcode [0xE000]: {}\n");
-                },
-            }
-        },
-        0xF000 => {
-            switch (opcode & 0x00FF) {
-                // LD Vx, DT
-                0x0007 => {
-                    V[(opcode & 0x0F00) >> 8] = delay_timer;
-                    pc += 2;
-                },
-                // LD Vx, K
-                0x000A => {
-                    var keyPress: bool = false;
-                    var i: u8 = 0;
-                    while (i < 16) {
-                        if (keys[i] != 0) {
-                            V[(opcode & 0x0F00) >> 8] = i;
-                            keyPress = true;
-                        }
-                        i += 1;
-                    }
-                    if (!keyPress) return;
-                    pc += 2;
-                },
-                // LD DT, Vx
-                0x0015 => {
-                    delay_timer = V[(opcode & 0x0F00) >> 8];
-                    pc += 2;
-                },
-                // LD ST, Vx
-                0x0018 => {
-                    sound_timer = V[(opcode & 0xF00) >> 8];
-                    pc += 2;
-                },
-                // ADD I, Vx
-                0x001E => {
-                    if (I + V[(opcode & 0x0F00) >> 8] > 0xFFF) {
-                        V[0xF] = 1; // there was an overflow
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    I = I + V[(opcode & 0x0F00) >> 8];
-                    pc += 2;
-                },
-                // LD F, Vx
-                0x0029 => {
-                    I = V[(opcode & 0x0F00) >> 8] * 0x5;
-                    pc += 2;
-                },
-                // LD B, Vx
-                0x0033 => {
-                    memory[I] = V[(opcode & 0x0F00) >> 8] / 100;
-                    memory[I + 1] = (V[(opcode & 0x0F00) >> 8] / 10) % 10;
-                    memory[I + 2] = (V[(opcode & 0x0F00) >> 8] % 100) % 10;
-                    pc += 2;
-                },
-                // LD [I], Vx
-                0x0055 => {
-                    var i: u8 = 0x0;
-                    while (i <= (opcode & 0x0F00) >> 8) {
-                        memory[I + i] = V[i];
-                        i += 1;
-                    }
-                    pc += 2;
-                },
-                // LD Vx, [I]
-                0x0065 => {
-                    var i: u8 = 0x0;
-                    const v: u8 = @intCast((opcode & 0x0F00) >> 8);
-                    while (i <= v) {
-                        V[i] = memory[I + v];
-                        i += 1;
-                    }
-                    pc += 2;
-                },
-                else => {
-                    @panic("Invalid opcode [0xF000]: {}\n");
-                },
-            }
-        },
-        0x0004 => {
-            if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
-                V[0xF] = 1; // carry
-            } else {
-                V[0xF] = 0;
-            }
-            V[(opcode & 0x0F00) >> 8] += V[(opcode & 0x00F0) >> 4];
-            pc += 2;
-        },
-        0x0000 => {
-            switch (opcode & 0x00FF) {
-                0x00E0 => { // clear screen
-                    for (&gfx) |*px| {
-                        px.* = 0;
-                    }
-                    pc += 2;
-                },
-                0x00EE => { // return
-                    sp -= 1;
-                    pc = stack[sp];
-                },
-                else => {
-                    // skip 0x0NNN
-                },
-            }
-        },
-        else => {
-            @panic("Invalid opcode: {}\n");
-        },
+        else => {},
     }
 
     if (delay_timer > 0) {
@@ -390,7 +140,7 @@ pub fn load(path: []const u8) !void {
     var buf: [3896]u8 = undefined;
     const len = try file.readAll(buf[0..]);
 
-    for (0..len - 1) |i| {
+    for (0..len) |i| {
         memory[0x200 + i] = buf[i];
     }
 }
