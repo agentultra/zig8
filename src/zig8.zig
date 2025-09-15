@@ -31,7 +31,6 @@ var sound_timer: u16 = undefined;
 const pixMask: u8 = 0x80;
 
 // Emulation API
-
 pub fn initialize() void {
     opcode = 0;
     pc = 0x200;
@@ -39,7 +38,7 @@ pub fn initialize() void {
         loc.* = 0;
     }
     for (0..79) |i| {
-        memory[i] = fontset[i];
+        memory[0x50 + i] = fontset[i];
     }
     for (&V) |*reg| {
         reg.* = 0;
@@ -60,7 +59,8 @@ pub fn initialize() void {
 }
 
 pub fn cycle() void {
-    opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
+    opcode = memory[pc];
+    std.debug.print("Opcode: 0x{X:0>4}\n", .{opcode});
 
     switch (opcode & 0xF000) {
         0xA000 => {
@@ -158,10 +158,10 @@ pub fn cycle() void {
                     const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     if (V[x] > V[y]) {
                         V[0xF] = 1; // borrow
+                        V[x] = V[x] - V[y];
                     } else {
                         V[0xF] = 0;
                     }
-                    V[x] = x - y;
                     pc += 2;
                 },
                 0x0006 => { //register SHR
@@ -179,10 +179,10 @@ pub fn cycle() void {
                     const y: u8 = @intCast((opcode & 0x00F0) >> 4);
                     if (V[y] > V[x]) {
                         V[0xF] = 1;
+                        V[x] = V[y] - V[x];
                     } else {
                         V[0xF] = 0;
                     }
-                    V[x] = V[y] - V[x];
                     pc += 2;
                 },
                 0x000E => {
@@ -344,19 +344,19 @@ pub fn cycle() void {
             pc += 2;
         },
         0x0000 => {
-            switch (opcode & 0x000F) {
-                0x0000 => { // clear screen
+            switch (opcode & 0x00FF) {
+                0x00E0 => { // clear screen
                     for (&gfx) |*px| {
                         px.* = 0;
                     }
                     pc += 2;
                 },
-                0x000E => { // return
-                    pc = stack[sp];
+                0x00EE => { // return
                     sp -= 1;
+                    pc = stack[sp];
                 },
                 else => {
-                    @panic("Invalid opcode [0x0000]: {}\n");
+                    // skip 0x0NNN
                 },
             }
         },
@@ -390,8 +390,8 @@ pub fn load(path: []const u8) !void {
     var buf: [3896]u8 = undefined;
     const len = try file.readAll(buf[0..]);
 
-    for (0..len) |i| {
-        memory[200 + i] = buf[i];
+    for (0..len - 1) |i| {
+        memory[0x200 + i] = buf[i];
     }
 }
 
