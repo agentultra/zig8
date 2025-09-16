@@ -75,6 +75,33 @@ pub fn cycle() void {
             const nnn: u16 = @intCast(opcode & 0x0FFF);
             pc = nnn;
         },
+        0x2000 => {
+            const nnn: u16 = @intCast(opcode & 0x0FFF);
+            sp += 1;
+            stack[sp] = pc;
+            pc = nnn;
+        },
+        0x3000 => {
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
+            if (V[x] == kk) {
+                pc += 2;
+            }
+        },
+        0x4000 => {
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
+            if (V[x] != kk) {
+                pc += 2;
+            }
+        },
+        0x5000 => {
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            if (V[x] == V[y]) {
+                pc += 2;
+            }
+        },
         0x6000 => {
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
@@ -83,8 +110,11 @@ pub fn cycle() void {
         0x7000 => {
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
-            const xkk: u16 = V[x] + kk;
+            const xkk: u16 = V[x] + @as(u16, kk);
             V[x] = @intCast(xkk & 0x00FF);
+        },
+        0x8000 => {
+            handle_8xx(opcode);
         },
         0xA000 => {
             const nnn: u12 = @intCast(opcode & 0x0FFF);
@@ -127,6 +157,55 @@ pub fn cycle() void {
     if (sound_timer > 0) {
         //std.fs.File.writer(std.io.getStdOut()).writeAll("BEEEP!\n");
         sound_timer = sound_timer - 1;
+    }
+}
+
+fn handle_8xx(opc: u16) void {
+    switch (opc & 0xF00F) {
+        0x8000 => { // LD Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            V[x] = V[y];
+        },
+        0x8001 => { // OR Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            const xy: u8 = V[x] | V[y];
+            V[x] = xy;
+        },
+        0x8002 => { // AND Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            const xy: u8 = V[x] & V[y];
+            V[x] = xy;
+        },
+        0x8003 => { // XOR Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            const xy: u8 = V[x] ^ V[y];
+            V[x] = xy;
+        },
+        0x8004 => { // ADD Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            const xy: u16 = @as(u16, V[x]) + @as(u16, V[y]);
+            if (xy > 255) {
+                V[0xF] = 1;
+            }
+            V[x] = @intCast(xy & 0x00FF);
+        },
+        0x8005 => { // SUB Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            if (V[x] > V[y]) {
+                V[0xF] = 1;
+                const xy: u16 = @as(u16, V[x]) - @as(u16, V[y]);
+                V[x] = @intCast(xy & 0x00FF);
+            } else {
+                V[0xF] = 0;
+            }
+        },
+        else => {},
     }
 }
 
