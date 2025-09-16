@@ -266,7 +266,7 @@ fn handle_Fxxx(opc: u16) void {
 
             var i: u16 = 0;
             while (i <= x) : (i += 1) {
-                memory[I + x] = V[i];
+                memory[I + i] = V[i];
             }
         },
         0x0065 => { // LD Vx, [I]
