@@ -118,6 +118,10 @@ pub fn cycle() void {
             const nnn: u12 = @intCast(opcode & 0x0FFF);
             I = nnn;
         },
+        0xB000 => { // JP V0, addr
+            const nnn: u12 = @intCast(opcode & 0x0FFF);
+            pc = V[0] + nnn;
+        },
         0xD000 => { // DRW Vx, Vy, nibble
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
