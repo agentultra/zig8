@@ -80,6 +80,12 @@ pub fn cycle() void {
             const kk: u8 = @intCast(opcode & 0x00FF);
             V[x] = kk;
         },
+        0x7000 => {
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast(opcode & 0x00FF);
+            const xkk: u16 = V[x] + kk;
+            V[x] = @intCast(xkk & 0x00FF);
+        },
         0xA000 => {
             const nnn: u12 = @intCast(opcode & 0x0FFF);
             I = nnn;
