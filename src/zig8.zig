@@ -71,56 +71,61 @@ pub fn cycle() void {
                 px.* = 0;
             }
         },
-        0x1000 => {
+        0x00EE => { // RET
+            std.debug.print("RET\n", .{});
+            sp -= 1;
+            pc = stack[sp];
+        },
+        0x1000 => { // JP addr
             const nnn: u16 = @intCast(opcode & 0x0FFF);
             pc = nnn;
         },
-        0x2000 => {
+        0x2000 => { // CALL addr
             const nnn: u16 = @intCast(opcode & 0x0FFF);
-            sp += 1;
             stack[sp] = pc;
+            sp += 1;
             pc = nnn;
         },
-        0x3000 => {
+        0x3000 => { // SE Vx, byte
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
             if (V[x] == kk) {
                 pc += 2;
             }
         },
-        0x4000 => {
+        0x4000 => { // SNE Vx, byte
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
             if (V[x] != kk) {
                 pc += 2;
             }
         },
-        0x5000 => {
+        0x5000 => { // SE Vx, Vy
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
             if (V[x] == V[y]) {
                 pc += 2;
             }
         },
-        0x6000 => {
+        0x6000 => { // LD Vx, byte
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
             V[x] = kk;
         },
-        0x7000 => {
+        0x7000 => { // ADD Vx, byte
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
             const xkk: u16 = V[x] + @as(u16, kk);
             V[x] = @intCast(xkk & 0x00FF);
         },
         0x8000 => {
-            handle_8xx(opcode);
+            handle_8xxx(opcode);
         },
-        0xA000 => {
+        0xA000 => { // LD I, addr
             const nnn: u12 = @intCast(opcode & 0x0FFF);
             I = nnn;
         },
-        0xD000 => {
+        0xD000 => { // DRW Vx, Vy, nibble
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
             const n: u4 = @intCast(opcode & 0x000F);
@@ -160,7 +165,7 @@ pub fn cycle() void {
     }
 }
 
-fn handle_8xx(opc: u16) void {
+fn handle_8xxx(opc: u16) void {
     switch (opc & 0xF00F) {
         0x8000 => { // LD Vx, Vy
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
