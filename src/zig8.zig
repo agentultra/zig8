@@ -66,15 +66,8 @@ pub fn cycle() void {
     pc += 2;
 
     switch (opcode & 0xF000) {
-        0x00E0 => { // CLEAR
-            for (&gfx) |*px| {
-                px.* = 0;
-            }
-        },
-        0x00EE => { // RET
-            std.debug.print("RET\n", .{});
-            sp -= 1;
-            pc = stack[sp];
+        0x0000 => {
+            handle_0xxx(opcode);
         },
         0x1000 => { // JP addr
             const nnn: u16 = @intCast(opcode & 0x0FFF);
@@ -165,6 +158,21 @@ pub fn cycle() void {
     if (sound_timer > 0) {
         //std.fs.File.writer(std.io.getStdOut()).writeAll("BEEEP!\n");
         sound_timer = sound_timer - 1;
+    }
+}
+
+fn handle_0xxx(opc: u16) void {
+    switch (opc & 0x00FF) {
+        0x00E0 => { // CLEAR
+            for (&gfx) |*px| {
+                px.* = 0;
+            }
+        },
+        0x00EE => { // RET
+            sp -= 1;
+            pc = stack[sp];
+        },
+        else => {},
     }
 }
 
