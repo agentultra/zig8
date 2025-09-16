@@ -56,6 +56,9 @@ pub fn main() !void {
                         },
                     }
                 },
+                c.SDL_KEYUP => {
+                    updatekeypresses(event.key);
+                },
                 else => {},
             }
         }
@@ -80,6 +83,7 @@ pub fn main() !void {
 fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
     switch (kevt.type) {
         c.SDL_KEYDOWN => {
+            std.debug.print("KEYDOWN\n", .{});
             switch (kevt.keysym.sym) {
                 c.SDLK_1 => {
                     zig8.keypress(0);
@@ -133,6 +137,7 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
             }
         },
         c.SDL_KEYUP => {
+            std.debug.print("KEYUP\n", .{});
             switch (kevt.keysym.sym) {
                 c.SDLK_1 => {
                     zig8.keyrelease(0);

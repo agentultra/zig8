@@ -150,6 +150,9 @@ pub fn cycle() void {
             }
             draw_flag = true;
         },
+        0xE000 => {
+            handle_Exxx(opcode);
+        },
         0xF000 => {
             handle_Fxxx(opcode);
         },
@@ -239,6 +242,24 @@ fn handle_8xxx(opc: u16) void {
             V[0xF] = 0;
             if ((V[x] & 0xF0) == 1) V[0xF] = 1;
             V[x] = V[x] *% 2;
+        },
+        else => {},
+    }
+}
+
+fn handle_Exxx(opc: u16) void {
+    switch (opc & 0x00FF) {
+        0x009E => { // SKP Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            std.debug.print("handle 0xEx9E: {d}\n", .{x});
+            const k: u8 = V[x];
+            if (keys[k] == 1) pc += 2;
+        },
+        0x00A1 => { // SKNP Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            const k: u8 = V[x];
+
+            if (keys[k] == 0) pc += 2;
         },
         else => {},
     }
