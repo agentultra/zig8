@@ -153,6 +153,9 @@ pub fn cycle() void {
             }
             draw_flag = true;
         },
+        0xF000 => {
+            handle_Fxxx(opcode);
+        },
         else => {},
     }
 
@@ -219,11 +222,52 @@ fn handle_8xxx(opc: u16) void {
             if (V[y] > V[x]) V[0xF] = 1;
             V[x] = V[y] -% V[x];
         },
-        0x800E => { // SHL Vx {, Vy}
+        0x800E => { // SH Vx {, Vy}
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             V[0xF] = 0;
             if ((V[x] & 0xF0) == 1) V[0xF] = 1;
             V[x] = V[x] *% 2;
+        },
+        else => {},
+    }
+}
+
+fn handle_Fxxx(opc: u16) void {
+    switch (opc & 0x00FF) {
+        0x001E => { // ADD I, Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            I = I + V[x];
+        },
+        0x0033 => { // LD B, Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            var v: u8 = V[x];
+
+            // ones-place
+            memory[I + 2] = v % 10;
+            v /= 10;
+
+            // tens-place
+            memory[I + 1] = v % 10;
+            v /= 10;
+
+            // hundreds-place
+            memory[I] = v % 10;
+        },
+        0x0055 => { // LD [I], Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+
+            var i: u16 = 0;
+            while (i <= x) : (i += 1) {
+                memory[I + x] = V[i];
+            }
+        },
+        0x0065 => { // LD Vx, [I]
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+
+            var i: u16 = 0;
+            while (i <= x) : (i += 1) {
+                V[i] = memory[I + i];
+            }
         },
         else => {},
     }
