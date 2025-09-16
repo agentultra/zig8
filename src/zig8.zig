@@ -197,13 +197,28 @@ fn handle_8xx(opc: u16) void {
         0x8005 => { // SUB Vx, Vy
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
-            if (V[x] > V[y]) {
-                V[0xF] = 1;
-                const xy: u16 = @as(u16, V[x]) - @as(u16, V[y]);
-                V[x] = @intCast(xy & 0x00FF);
-            } else {
-                V[0xF] = 0;
-            }
+            V[0xF] = 0;
+            if (V[x] > V[y]) V[0xF] = 1;
+            V[x] = V[x] -% V[y];
+        },
+        0x8006 => { // SHR Vx, {, Vy}
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            V[0xF] = 0;
+            if ((V[x] & 0x0F) == 1) V[0xF] = 1;
+            V[x] = V[x] / 2;
+        },
+        0x8007 => { // SUBN Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            V[0xF] = 0;
+            if (V[y] > V[x]) V[0xF] = 1;
+            V[x] = V[y] -% V[x];
+        },
+        0x800E => { // SHL Vx {, Vy}
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            V[0xF] = 0;
+            if ((V[x] & 0xF0) == 1) V[0xF] = 1;
+            V[x] = V[x] *% 2;
         },
         else => {},
     }
