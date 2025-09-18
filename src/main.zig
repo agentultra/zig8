@@ -7,6 +7,12 @@ const c = @cImport({
 const screen_w = 64;
 const screen_h = 32;
 
+const target_frame_time: f64 = 16.0; // Frame time in ms, controls FPS
+
+var real_delta_time: f64 = 0.0;
+var last_update_time: f64 = 0.0;
+var time_accumulator: f64 = 0.0;
+
 pub fn main() !void {
     var args = std.process.args();
     defer args.deinit();
@@ -38,8 +44,13 @@ pub fn main() !void {
 
     var running = true;
 
+    last_update_time = get_performance_counter() / get_performance_frequency();
+
     while (running) {
-        zig8.cycle();
+        real_delta_time = (get_performance_counter() - last_update_time) / get_performance_frequency();
+        last_update_time += real_delta_time;
+        time_accumulator += real_delta_time;
+
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
             switch (event.type) {
@@ -62,6 +73,10 @@ pub fn main() !void {
                 else => {},
             }
         }
+        while (time_accumulator > target_frame_time) {
+            zig8.cycle();
+            time_accumulator -= target_frame_time;
+        }
         _ = c.SDL_RenderClear(renderer);
         _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         for (0..screen_w) |x| {
@@ -76,7 +91,6 @@ pub fn main() !void {
         }
         _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         c.SDL_RenderPresent(renderer);
-        c.SDL_Delay(3);
     }
 }
 
@@ -190,4 +204,12 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
         },
         else => {},
     }
+}
+
+fn get_performance_counter() f64 {
+    return @as(f64, @floatFromInt(c.SDL_GetPerformanceCounter()));
+}
+
+fn get_performance_frequency() f64 {
+    return @as(f64, @floatFromInt(c.SDL_GetPerformanceFrequency()));
 }
