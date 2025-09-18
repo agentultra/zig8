@@ -25,6 +25,7 @@ var sp: u16 = undefined; // stack pointer
 pub var draw_flag: bool = undefined; // when true after one cycle, render
 pub var gfx: [2048]u8 = undefined; // graphics memory
 var keys: [16]u8 = undefined; // keys
+var rand: std.Random.DefaultPrng = undefined; // prng random number generator
 
 var delay_timer: u8 = undefined; // count at 60hz down to zero
 var sound_timer: u16 = undefined;
@@ -32,7 +33,7 @@ var sound_timer: u16 = undefined;
 const pixMask: u8 = 0x80;
 
 // Emulation API
-pub fn initialize() void {
+pub fn initialize(prng: std.Random.DefaultPrng) void {
     opcode = 0;
     pc = 0x200;
     for (&memory) |*loc| {
@@ -56,6 +57,7 @@ pub fn initialize() void {
     for (&keys) |*key| {
         key.* = 0;
     }
+    rand = prng;
     delay_timer = 0;
     sound_timer = 0;
 }
@@ -126,6 +128,13 @@ pub fn cycle() void {
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
             if (V[x] != V[y]) pc += 2;
+        },
+        0xC000 => { // RND Vx, byte
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const kk: u8 = @intCast((opcode & 0x00FF));
+
+            const rv: u8 = std.Random.uintAtMost(rand.random(), u8, 255);
+            V[x] = rv & kk;
         },
         0xD000 => { // DRW Vx, Vy, nibble
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);

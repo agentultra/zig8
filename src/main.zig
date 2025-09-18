@@ -20,6 +20,9 @@ pub fn main() !void {
     _ = args.skip();
     const rom_path = args.next() orelse "";
 
+    const seed: u64 = @intCast(std.time.timestamp());
+    const prng = std.Random.DefaultPrng.init(seed);
+
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
         c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
@@ -39,7 +42,7 @@ pub fn main() !void {
     };
     defer c.SDL_DestroyRenderer(renderer);
 
-    zig8.initialize();
+    zig8.initialize(prng);
     try zig8.load(rom_path);
 
     var running = true;
