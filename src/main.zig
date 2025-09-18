@@ -76,7 +76,7 @@ pub fn main() !void {
         }
         _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         c.SDL_RenderPresent(renderer);
-        c.SDL_Delay(30);
+        c.SDL_Delay(3);
     }
 }
 
@@ -85,16 +85,16 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
         c.SDL_KEYDOWN => {
             switch (kevt.keysym.sym) {
                 c.SDLK_1 => {
-                    zig8.keypress(0);
-                },
-                c.SDLK_2 => {
                     zig8.keypress(1);
                 },
-                c.SDLK_3 => {
+                c.SDLK_2 => {
                     zig8.keypress(2);
                 },
-                c.SDLK_4 => {
+                c.SDLK_3 => {
                     zig8.keypress(3);
+                },
+                c.SDLK_4 => {
+                    zig8.keypress(12);
                 },
                 c.SDLK_q => {
                     zig8.keypress(4);
@@ -106,28 +106,28 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
                     zig8.keypress(6);
                 },
                 c.SDLK_r => {
-                    zig8.keypress(7);
-                },
-                c.SDLK_a => {
-                    zig8.keypress(8);
-                },
-                c.SDLK_s => {
-                    zig8.keypress(9);
-                },
-                c.SDLK_d => {
-                    zig8.keypress(10);
-                },
-                c.SDLK_f => {
-                    zig8.keypress(11);
-                },
-                c.SDLK_z => {
-                    zig8.keypress(12);
-                },
-                c.SDLK_x => {
                     zig8.keypress(13);
                 },
-                c.SDLK_c => {
+                c.SDLK_a => {
+                    zig8.keypress(7);
+                },
+                c.SDLK_s => {
+                    zig8.keypress(8);
+                },
+                c.SDLK_d => {
+                    zig8.keypress(9);
+                },
+                c.SDLK_f => {
                     zig8.keypress(14);
+                },
+                c.SDLK_z => {
+                    zig8.keypress(10);
+                },
+                c.SDLK_x => {
+                    zig8.keypress(0);
+                },
+                c.SDLK_c => {
+                    zig8.keypress(11);
                 },
                 c.SDLK_v => {
                     zig8.keypress(15);
@@ -138,16 +138,16 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
         c.SDL_KEYUP => {
             switch (kevt.keysym.sym) {
                 c.SDLK_1 => {
-                    zig8.keyrelease(0);
-                },
-                c.SDLK_2 => {
                     zig8.keyrelease(1);
                 },
-                c.SDLK_3 => {
+                c.SDLK_2 => {
                     zig8.keyrelease(2);
                 },
-                c.SDLK_4 => {
+                c.SDLK_3 => {
                     zig8.keyrelease(3);
+                },
+                c.SDLK_4 => {
+                    zig8.keyrelease(12);
                 },
                 c.SDLK_q => {
                     zig8.keyrelease(4);
@@ -159,28 +159,28 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
                     zig8.keyrelease(6);
                 },
                 c.SDLK_r => {
-                    zig8.keyrelease(7);
-                },
-                c.SDLK_a => {
-                    zig8.keyrelease(8);
-                },
-                c.SDLK_s => {
-                    zig8.keyrelease(9);
-                },
-                c.SDLK_d => {
-                    zig8.keyrelease(10);
-                },
-                c.SDLK_f => {
-                    zig8.keyrelease(11);
-                },
-                c.SDLK_z => {
-                    zig8.keyrelease(12);
-                },
-                c.SDLK_x => {
                     zig8.keyrelease(13);
                 },
-                c.SDLK_c => {
+                c.SDLK_a => {
+                    zig8.keyrelease(7);
+                },
+                c.SDLK_s => {
+                    zig8.keyrelease(8);
+                },
+                c.SDLK_d => {
+                    zig8.keyrelease(9);
+                },
+                c.SDLK_f => {
                     zig8.keyrelease(14);
+                },
+                c.SDLK_z => {
+                    zig8.keyrelease(10);
+                },
+                c.SDLK_x => {
+                    zig8.keyrelease(0);
+                },
+                c.SDLK_c => {
+                    zig8.keyrelease(11);
                 },
                 c.SDLK_v => {
                     zig8.keyrelease(15);
