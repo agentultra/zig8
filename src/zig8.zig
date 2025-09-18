@@ -122,6 +122,11 @@ pub fn cycle() void {
             const nnn: u12 = @intCast(opcode & 0x0FFF);
             pc = V[0] + nnn;
         },
+        0x9000 => { // SNE Vx, Vy
+            const x: u4 = @intCast((opcode & 0x0F00) >> 8);
+            const y: u4 = @intCast((opcode & 0x00F0) >> 4);
+            if (V[x] != V[y]) pc += 2;
+        },
         0xD000 => { // DRW Vx, Vy, nibble
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
@@ -156,7 +161,9 @@ pub fn cycle() void {
         0xF000 => {
             handle_Fxxx(opcode);
         },
-        else => {},
+        else => {
+            std.debug.print("Unhandled opcode: 0x{X}\n", .{opcode});
+        },
     }
 
     if (delay_timer > 0) {
@@ -251,7 +258,6 @@ fn handle_Exxx(opc: u16) void {
     switch (opc & 0x00FF) {
         0x009E => { // SKP Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
-            std.debug.print("handle 0xEx9E: {d}\n", .{x});
             const k: u8 = V[x];
             if (keys[k] == 1) pc += 2;
         },
@@ -308,10 +314,12 @@ fn handle_Fxxx(opc: u16) void {
 
 pub fn keypress(k: u8) void {
     keys[k] = 1;
+    std.debug.print("keypress: key[{d}] = {d}\n", .{ k, keys[k] });
 }
 
 pub fn keyrelease(k: u8) void {
     keys[k] = 0;
+    std.debug.print("keypress: key[{d}] = {d}\n", .{ k, keys[k] });
 }
 
 pub fn load(path: []const u8) !void {
