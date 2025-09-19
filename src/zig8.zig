@@ -110,8 +110,8 @@ pub fn cycle() void {
         0x7000 => { // ADD Vx, byte
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const kk: u8 = @intCast(opcode & 0x00FF);
-            const xkk: u16 = V[x] + @as(u16, kk);
-            V[x] = @intCast(xkk & 0x00FF);
+
+            V[x] = V[x] +% kk;
         },
         0x8000 => {
             handle_8xxx(opcode);
@@ -228,36 +228,66 @@ fn handle_8xxx(opc: u16) void {
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
             const xy: u16 = @as(u16, V[x]) + @as(u16, V[y]);
+
+            V[x] = @intCast(xy & 0xFF);
+
             if (xy > 255) {
                 V[0xF] = 1;
+            } else {
+                V[0xF] = 0;
             }
-            V[x] = @intCast(xy & 0x00FF);
         },
         0x8005 => { // SUB Vx, Vy
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
-            V[0xF] = 0;
-            if (V[x] > V[y]) V[0xF] = 1;
-            V[x] = V[x] -% V[y];
+            const vx = V[x];
+            const vy = V[y];
+
+            V[x] = vx -% vy;
+
+            if (vx >= vy) {
+                V[0xF] = 1;
+            } else {
+                V[0xF] = 0;
+            }
         },
         0x8006 => { // SHR Vx, {, Vy}
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
-            V[0xF] = 0;
-            if ((V[x] & 0x0F) == 1) V[0xF] = 1;
-            V[x] = V[x] / 2;
+            const vx = V[x];
+
+            V[x] = vx >> 1;
+
+            if ((vx & 0x1) == 1) {
+                V[0xF] = 1;
+            } else {
+                V[0xF] = 0;
+            }
         },
         0x8007 => { // SUBN Vx, Vy
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
             const y: u4 = @intCast((opcode & 0x00F0) >> 4);
-            V[0xF] = 0;
-            if (V[y] > V[x]) V[0xF] = 1;
-            V[x] = V[y] -% V[x];
+            const vx = V[x];
+            const vy = V[y];
+
+            V[x] = vy -% vx;
+
+            if (vy >= vx) {
+                V[0xF] = 1;
+            } else {
+                V[0xF] = 0;
+            }
         },
         0x800E => { // SH Vx {, Vy}
             const x: u4 = @intCast((opcode & 0x0F00) >> 8);
-            V[0xF] = 0;
-            if ((V[x] & 0xF0) == 1) V[0xF] = 1;
-            V[x] = V[x] *% 2;
+            const vx = V[x];
+
+            V[x] = vx << 1;
+
+            if (((vx & 0x80) >> 7) == 1) {
+                V[0xF] = 1;
+            } else {
+                V[0xF] = 0;
+            }
         },
         else => {},
     }
