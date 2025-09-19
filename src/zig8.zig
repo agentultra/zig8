@@ -282,6 +282,22 @@ fn handle_Exxx(opc: u16) void {
 
 fn handle_Fxxx(opc: u16) void {
     switch (opc & 0x00FF) {
+        0x000A => { // LD Vx, K
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            var pressed = false;
+            for (0..15) |i| {
+                if (keys[i] == 1) {
+                    pressed = true;
+                    V[x] = @as(u8, @intCast(i));
+                    break;
+                }
+            }
+            if (!pressed) pc -= 2;
+        },
+        0x0015 => { // LD DT, Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            delay_timer = V[x];
+        },
         0x001E => { // ADD I, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
             I = I + V[x];
