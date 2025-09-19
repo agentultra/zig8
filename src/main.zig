@@ -7,7 +7,7 @@ const c = @cImport({
 const screen_w = 64;
 const screen_h = 32;
 
-const target_frame_time: f64 = 42.0 * 10000; // Frame time in ms, controls FPS
+const target_frame_time: f64 = 16.66; // Frame time in ms, controls FPS
 
 var real_delta_time: f64 = 0.0;
 var last_update_time: f64 = 0.0;
