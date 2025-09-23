@@ -40,7 +40,7 @@ pub fn initialize(prng: std.Random.DefaultPrng) void {
         loc.* = 0;
     }
     for (0..80) |i| {
-        memory[0x50 + i] = fontset[i];
+        memory[i] = fontset[i];
     }
     for (&V) |*reg| {
         reg.* = 0;
@@ -328,9 +328,17 @@ fn handle_Fxxx(opc: u16) void {
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
             delay_timer = V[x];
         },
+        0x0018 => { // LD ST, Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            sound_timer = V[x];
+        },
         0x001E => { // ADD I, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
             I = I + V[x];
+        },
+        0x0029 => { // LD F, Vx
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            I = @intCast(V[x] & 0x00FF);
         },
         0x0033 => { // LD B, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
