@@ -318,10 +318,15 @@ fn handle_Fxxx(opc: u16) void {
                 if (keys[i] == 1) {
                     pressed = true;
                     V[x] = @as(u8, @intCast(i));
+                    keys[i] = 0;
                     break;
                 }
             }
             if (!pressed) pc -= 2;
+        },
+        0x0007 => { // LD Vx, DT
+            const x: u4 = @intCast((opc & 0x0F00) >> 8);
+            V[x] = delay_timer;
         },
         0x0015 => { // LD DT, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
@@ -376,12 +381,10 @@ fn handle_Fxxx(opc: u16) void {
 
 pub fn keypress(k: u8) void {
     keys[k] = 1;
-    std.debug.print("keypress: key[{d}] = {d}\n", .{ k, keys[k] });
 }
 
 pub fn keyrelease(k: u8) void {
     keys[k] = 0;
-    std.debug.print("keypress: key[{d}] = {d}\n", .{ k, keys[k] });
 }
 
 pub fn load(path: []const u8) !void {
