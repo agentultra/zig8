@@ -7,11 +7,8 @@ const c = @cImport({
 const screen_w = 64;
 const screen_h = 32;
 
-const target_frame_time: f64 = 16.66; // Frame time in ms, controls FPS
-
-var real_delta_time: f64 = 0.0;
 var last_update_time: f64 = 0.0;
-var time_accumulator: f64 = 0.0;
+var cycle_delay: f64 = 4.0; // ms to accumulate between CPU cycles
 
 pub fn main() !void {
     var args = std.process.args();
@@ -47,12 +44,11 @@ pub fn main() !void {
 
     var running = true;
 
-    last_update_time = get_performance_counter() / get_performance_frequency();
+    last_update_time = get_current_ms();
 
     while (running) {
-        real_delta_time = (get_performance_counter() - last_update_time) / get_performance_frequency();
-        last_update_time += real_delta_time;
-        time_accumulator += real_delta_time;
+        const current_time = get_current_ms();
+        const dt = current_time - last_update_time;
 
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
@@ -65,6 +61,12 @@ pub fn main() !void {
                         c.SDLK_ESCAPE => {
                             running = false;
                         },
+                        c.SDLK_LEFTBRACKET => {
+                            cycle_delay = if (cycle_delay < 10.0) cycle_delay + 1.0 else 0.0;
+                        },
+                        c.SDLK_RIGHTBRACKET => {
+                            cycle_delay = if (cycle_delay > 0.0) cycle_delay - 1.0 else 0.0;
+                        },
                         else => {
                             updatekeypresses(event.key);
                         },
@@ -76,15 +78,14 @@ pub fn main() !void {
                 else => {},
             }
         }
-        while (time_accumulator > target_frame_time) {
+        if (dt > cycle_delay) {
+            last_update_time = current_time;
             zig8.cycle();
-            time_accumulator -= target_frame_time;
         }
         _ = c.SDL_RenderClear(renderer);
         _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         for (0..screen_w) |x| {
             for (0..screen_h) |y| {
-                //std.debug.print("x {d}, y {d}\n", .{ x, y });
                 const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
                 if (pixel_active) {
                     const p: c.SDL_Rect = .{ .x = @as(c_int, @intCast(x * 4)), .y = @as(c_int, @intCast(y * 4)), .w = 4, .h = 4 };
@@ -207,6 +208,10 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
         },
         else => {},
     }
+}
+
+fn get_current_ms() f64 {
+    return (get_performance_counter() / get_performance_frequency()) * 1000;
 }
 
 fn get_performance_counter() f64 {

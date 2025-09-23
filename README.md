@@ -37,6 +37,9 @@ QWERTY-keyboard like so:
     |A|0|B|F|    |Z|X|C|V|
     +-+-+-+-+    +-+-+-+-+
 
+Most games run well at the default speed.  You can slow down or speed
+up the emulator with the `[` and `]` keys respectively if needed.
+
 ## Building
 
 You'll need Zig `0.15.1` and SDL2 installed:
