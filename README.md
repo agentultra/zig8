@@ -59,6 +59,7 @@ That should install `zig8` at `zig-out/bin/zig8`.
   - [ ] Display pc, sp, stack, registers
 - [ ] Emulator
   - [x] User-controlled CPU hz
+  - [ ] Wait for keypress (Fx0A)
   - [ ] Cycle video pallets
   - [ ] Video scaling
   - [ ] Super-Chip8 (optional)
