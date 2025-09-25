@@ -342,7 +342,7 @@ fn handle_Fxxx(opc: u16) void {
         },
         0x0029 => { // LD F, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
-            I = @intCast(V[x] & 0x00FF);
+            I = @intCast(V[x] * 5);
         },
         0x0033 => { // LD B, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
