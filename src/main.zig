@@ -4,8 +4,13 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 
+// The emulated screen dimensions
 const screen_w = 64;
 const screen_h = 32;
+
+// The display dimensions
+const display_w = 64 * 4;
+const display_h = 32 * 4;
 
 var last_update_time: f64 = 0.0;
 var cycle_delay: f64 = 4.0; // ms to accumulate between CPU cycles
@@ -38,6 +43,18 @@ pub fn main() !void {
         return error.SDLInitializationFailed;
     };
     defer c.SDL_DestroyRenderer(renderer);
+
+    const screen_texture = c.SDL_CreateTexture(
+        renderer,
+        c.SDL_PIXELFORMAT_RGBA32,
+        c.SDL_TEXTUREACCESS_TARGET,
+        screen_w,
+        screen_h,
+    ) orelse {
+        c.SDL_Log("Unable to create screen texture: %s", c.SDL_GetError());
+        return error.SDLInitializationFailed;
+    };
+    defer c.SDL_DestroyTexture(screen_texture);
 
     zig8.initialize(prng);
     try zig8.load(rom_path);
@@ -82,7 +99,7 @@ pub fn main() !void {
             last_update_time = current_time;
             zig8.cycle();
         }
-        render(renderer);
+        render(renderer, screen_texture);
     }
 }
 
@@ -198,19 +215,22 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
     }
 }
 
-fn render(renderer: *c.SDL_Renderer) void {
+fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
     _ = c.SDL_RenderClear(renderer);
-    _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    var pixels: [2048]u32 = undefined;
     for (0..screen_w) |x| {
         for (0..screen_h) |y| {
             const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
             if (pixel_active) {
-                const p: c.SDL_Rect = .{ .x = @as(c_int, @intCast(x * 4)), .y = @as(c_int, @intCast(y * 4)), .w = 4, .h = 4 };
-                _ = c.SDL_RenderFillRect(renderer, &p);
+                pixels[(screen_w * y) + x] = rgba(255, 255, 255, 255);
+            } else {
+                pixels[(screen_w * y) + x] = rgba(0, 0, 0, 0);
             }
         }
     }
-    _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    _ = c.SDL_UpdateTexture(texture, null, &pixels, screen_w * 4);
+    const display_rect: c.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
+    _ = c.SDL_RenderCopy(renderer, texture, null, &display_rect);
     c.SDL_RenderPresent(renderer);
 }
 
@@ -224,4 +244,8 @@ fn get_performance_counter() f64 {
 
 fn get_performance_frequency() f64 {
     return @as(f64, @floatFromInt(c.SDL_GetPerformanceFrequency()));
+}
+
+fn rgba(r: u8, g: u8, b: u8, a: u8) u32 {
+    return (@as(u32, r) << 24) | (@as(u32, g) << 16) | (@as(u32, b) << 8) | @as(u32, a);
 }
