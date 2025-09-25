@@ -82,19 +82,7 @@ pub fn main() !void {
             last_update_time = current_time;
             zig8.cycle();
         }
-        _ = c.SDL_RenderClear(renderer);
-        _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        for (0..screen_w) |x| {
-            for (0..screen_h) |y| {
-                const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
-                if (pixel_active) {
-                    const p: c.SDL_Rect = .{ .x = @as(c_int, @intCast(x * 4)), .y = @as(c_int, @intCast(y * 4)), .w = 4, .h = 4 };
-                    _ = c.SDL_RenderFillRect(renderer, &p);
-                }
-            }
-        }
-        _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-        c.SDL_RenderPresent(renderer);
+        render(renderer);
     }
 }
 
@@ -208,6 +196,22 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
         },
         else => {},
     }
+}
+
+fn render(renderer: *c.SDL_Renderer) void {
+    _ = c.SDL_RenderClear(renderer);
+    _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    for (0..screen_w) |x| {
+        for (0..screen_h) |y| {
+            const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
+            if (pixel_active) {
+                const p: c.SDL_Rect = .{ .x = @as(c_int, @intCast(x * 4)), .y = @as(c_int, @intCast(y * 4)), .w = 4, .h = 4 };
+                _ = c.SDL_RenderFillRect(renderer, &p);
+            }
+        }
+    }
+    _ = c.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    c.SDL_RenderPresent(renderer);
 }
 
 fn get_current_ms() f64 {
