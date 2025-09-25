@@ -152,8 +152,8 @@ pub fn cycle() void {
                     const base: u16 = 0x80;
                     if ((pixel & (base >> col)) != 0) {
                         const w: u32 = 64;
-                        const i: u32 = (dy + row) * w;
-                        const ix: u64 = i + dx + col;
+                        const i: u32 = ((dy + row) * w);
+                        const ix: u64 = (i + dx + col) % 2048;
                         if (gfx[ix] == 1) {
                             V[0xF] = 1;
                         }
