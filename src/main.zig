@@ -31,12 +31,14 @@ pub fn main() !void {
     }
     defer c.SDL_Quit();
 
-    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 400, 140, c.SDL_WINDOW_OPENGL) orelse
+    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 400, 140, c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_RESIZABLE) orelse
         {
             c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
             return error.SDLInitializationFailed;
         };
     defer c.SDL_DestroyWindow(screen);
+
+    c.SDL_AddEventWatch(resizing_event_watcher, screen);
 
     const renderer = c.SDL_CreateRenderer(screen, -1, 0) orelse {
         c.SDL_Log("Unable to create renderer: %s", c.SDL_GetError());
@@ -232,6 +234,17 @@ fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
     const display_rect: c.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
     _ = c.SDL_RenderCopy(renderer, texture, null, &display_rect);
     c.SDL_RenderPresent(renderer);
+}
+
+fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c) c_int {
+    if ((event.*.type == c.SDL_WINDOWEVENT) and (event.*.window.event == c.SDL_WINDOWEVENT_RESIZED)) {
+        const win: ?*c.SDL_Window = c.SDL_GetWindowFromID(event.*.window.windowID);
+        const event_window: *c.SDL_Window = @ptrCast(data);
+        if (win == event_window) {
+            std.debug.print("resizing\n", .{});
+        }
+    }
+    return 0;
 }
 
 fn get_current_ms() f64 {
