@@ -9,9 +9,14 @@ const screen_w = 64;
 const screen_h = 32;
 
 // The display dimensions
-const display_w = 64 * 4;
-const display_h = 32 * 4;
+var display_w: u64 = 64 * 4;
+var display_h: u64 = 32 * 4;
 
+// Resize debouncing
+const resize_delay: f64 = 10.0;
+var resize_pending: bool = true;
+
+// Simulating CPU hz
 var last_update_time: f64 = 0.0;
 var cycle_delay: f64 = 4.0; // ms to accumulate between CPU cycles
 
@@ -97,6 +102,11 @@ pub fn main() !void {
                 else => {},
             }
         }
+
+        if (dt > resize_delay) {
+            resize_pending = true;
+        }
+
         if (dt > cycle_delay) {
             last_update_time = current_time;
             zig8.cycle();
@@ -237,12 +247,18 @@ fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
 }
 
 fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c) c_int {
-    if ((event.*.type == c.SDL_WINDOWEVENT) and (event.*.window.event == c.SDL_WINDOWEVENT_RESIZED)) {
+    if (resize_pending and (event.*.type == c.SDL_WINDOWEVENT) and (event.*.window.event == c.SDL_WINDOWEVENT_RESIZED)) {
         const win: ?*c.SDL_Window = c.SDL_GetWindowFromID(event.*.window.windowID);
         const event_window: *c.SDL_Window = @ptrCast(data);
         if (win == event_window) {
-            std.debug.print("resizing\n", .{});
+            var win_w: c_int = undefined;
+            var win_h: c_int = undefined;
+            c.SDL_GetWindowSize(win, &win_w, &win_h);
+
+            std.debug.print("resized w: {d} h: {d}\n", .{ win_w, win_h });
         }
+
+        resize_pending = false;
     }
     return 0;
 }
