@@ -57,6 +57,7 @@ That should install `zig8` at `zig-out/bin/zig8`.
   - [ ] Step
   - [ ] Memory Watchers
   - [ ] Display pc, sp, stack, registers
+  - [ ] Disassembler (optional)
 - [ ] Emulator
   - [x] User-controlled CPU hz
   - [x] Wait for keypress (Fx0A)
