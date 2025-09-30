@@ -11,6 +11,7 @@ const screen_h = 32;
 // The display dimensions in pixel units
 var display_w: u64 = 256;
 var display_h: u64 = 128;
+const display_aspect_ratio: f64 = 2.0;
 
 // Resize debouncing
 const resize_delay: f64 = 10.0;
@@ -256,9 +257,15 @@ fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c
 
             c.SDL_GetWindowSize(win, &win_w, &win_h);
 
-            display_w = @as(u64, @intCast(win_w));
-            display_h = @as(u64, @intCast(win_h));
-            std.debug.print("resized w: {d} h: {d}\n", .{ win_w, win_h });
+            const target_w: f64 = @floatFromInt(@as(u64, @intCast(win_w)));
+            const target_h: f64 = @floatFromInt(@as(u64, @intCast(win_h)));
+            const target_area = target_w * target_h;
+
+            const new_w: f64 = std.math.sqrt(display_aspect_ratio * target_area);
+            const new_h: f64 = target_area / new_w;
+
+            display_w = @intFromFloat(@round(new_w));
+            display_h = @intFromFloat(@round(new_h));
         }
 
         resize_pending = false;
