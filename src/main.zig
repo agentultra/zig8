@@ -9,13 +9,14 @@ const screen_w = 64;
 const screen_h = 32;
 
 // The display dimensions in pixel units
-var display_w: u64 = 256;
-var display_h: u64 = 128;
-const display_aspect_ratio: f64 = 2.0;
-
-// Resize debouncing
-const resize_delay: f64 = 10.0;
-var resize_pending: bool = true;
+const base_display_w: u64 = 256;
+const base_display_h: u64 = 128;
+var display_w: u64 = base_display_w;
+var display_h: u64 = base_display_h;
+var display_size_pct: f64 = 1.0;
+const min_display_size_pct: f64 = 0.5;
+const max_display_size_pct: f64 = 3.0;
+var update_window_size: bool = false; // update window when display size changed
 
 // Simulating CPU hz
 var last_update_time: f64 = 0.0;
@@ -37,14 +38,12 @@ pub fn main() !void {
     }
     defer c.SDL_Quit();
 
-    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_RESIZABLE) orelse
+    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), c.SDL_WINDOW_OPENGL) orelse
         {
             c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
             return error.SDLInitializationFailed;
         };
     defer c.SDL_DestroyWindow(screen);
-
-    c.SDL_AddEventWatch(resizing_event_watcher, screen);
 
     const renderer = c.SDL_CreateRenderer(screen, -1, 0) orelse {
         c.SDL_Log("Unable to create renderer: %s", c.SDL_GetError());
@@ -92,6 +91,14 @@ pub fn main() !void {
                         c.SDLK_RIGHTBRACKET => {
                             cycle_delay = if (cycle_delay > 0.0) cycle_delay - 1.0 else 0.0;
                         },
+                        c.SDLK_COMMA => {
+                            display_size_pct = @max(min_display_size_pct, display_size_pct - 0.1);
+                            update_window_size = true;
+                        },
+                        c.SDLK_PERIOD => {
+                            display_size_pct = @min(max_display_size_pct, display_size_pct + 0.1);
+                            update_window_size = true;
+                        },
                         else => {
                             updatekeypresses(event.key);
                         },
@@ -104,8 +111,11 @@ pub fn main() !void {
             }
         }
 
-        if (dt > resize_delay) {
-            resize_pending = true;
+        display_w = @intFromFloat(@as(f64, @floatFromInt(base_display_w)) * display_size_pct);
+        display_h = @intFromFloat(@as(f64, @floatFromInt(base_display_h)) * display_size_pct);
+        if (update_window_size) {
+            c.SDL_SetWindowSize(screen, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)));
+            update_window_size = false;
         }
 
         if (dt > cycle_delay) {
@@ -245,34 +255,6 @@ fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
     const display_rect: c.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
     _ = c.SDL_RenderCopy(renderer, texture, null, &display_rect);
     c.SDL_RenderPresent(renderer);
-}
-
-fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c) c_int {
-    if (resize_pending and (event.*.type == c.SDL_WINDOWEVENT) and (event.*.window.event == c.SDL_WINDOWEVENT_RESIZED)) {
-        const win: ?*c.SDL_Window = c.SDL_GetWindowFromID(event.*.window.windowID);
-        const event_window: *c.SDL_Window = @ptrCast(data);
-        if (win == event_window) {
-            var win_w: c_int = undefined;
-            var win_h: c_int = undefined;
-
-            c.SDL_GetWindowSize(win, &win_w, &win_h);
-
-            const target_w: f64 = @floatFromInt(@as(u64, @intCast(win_w)));
-            const target_h: f64 = @floatFromInt(@as(u64, @intCast(win_h)));
-            const target_area = target_w * target_h;
-
-            const new_w: f64 = std.math.sqrt(display_aspect_ratio * target_area);
-            const new_h: f64 = target_area / new_w;
-
-            display_w = @intFromFloat(@round(new_w));
-            display_h = @intFromFloat(@round(new_h));
-
-            c.SDL_SetWindowSize(win, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)));
-        }
-
-        resize_pending = false;
-    }
-    return 0;
 }
 
 fn get_current_ms() f64 {

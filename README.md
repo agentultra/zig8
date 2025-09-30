@@ -40,6 +40,9 @@ QWERTY-keyboard like so:
 Most games run well at the default speed.  You can slow down or speed
 up the emulator with the `[` and `]` keys respectively if needed.
 
+You can resize the display with `,` and `.` to decrease/increase the
+size from the default.
+
 ## Building
 
 You'll need Zig `0.15.1` and SDL2 installed:
