@@ -37,7 +37,7 @@ pub fn main() !void {
     }
     defer c.SDL_Quit();
 
-    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 400, 140, c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_RESIZABLE) orelse
+    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_RESIZABLE) orelse
         {
             c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
             return error.SDLInitializationFailed;
@@ -266,6 +266,8 @@ fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c
 
             display_w = @intFromFloat(@round(new_w));
             display_h = @intFromFloat(@round(new_h));
+
+            c.SDL_SetWindowSize(win, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)));
         }
 
         resize_pending = false;
