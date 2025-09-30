@@ -8,9 +8,9 @@ const c = @cImport({
 const screen_w = 64;
 const screen_h = 32;
 
-// The display dimensions
-var display_w: u64 = 64 * 4;
-var display_h: u64 = 32 * 4;
+// The display dimensions in pixel units
+var display_w: u64 = 256;
+var display_h: u64 = 128;
 
 // Resize debouncing
 const resize_delay: f64 = 10.0;
@@ -253,8 +253,11 @@ fn resizing_event_watcher(data: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c
         if (win == event_window) {
             var win_w: c_int = undefined;
             var win_h: c_int = undefined;
+
             c.SDL_GetWindowSize(win, &win_w, &win_h);
 
+            display_w = @as(u64, @intCast(win_w));
+            display_h = @as(u64, @intCast(win_h));
             std.debug.print("resized w: {d} h: {d}\n", .{ win_w, win_h });
         }
 
