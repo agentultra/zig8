@@ -15,6 +15,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("zig8", zig8);
+    exe.linkSystemLibrary("opengl");
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
 

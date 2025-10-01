@@ -1,7 +1,15 @@
 const std = @import("std");
 const zig8 = @import("zig8");
 const c = @cImport({
+    @cInclude("string.h");
+});
+const sdl = @cImport({
     @cInclude("SDL2/SDL.h");
+    @cInclude("SDL_opengl.h");
+    @cInclude("SDL_opengl_glext.h");
+});
+const gl = @cImport({
+    @cInclude("GL/gl.h");
 });
 
 // The emulated screen dimensions
@@ -22,6 +30,22 @@ var update_window_size: bool = false; // update window when display size changed
 var last_update_time: f64 = 0.0;
 var cycle_delay: f64 = 4.0; // ms to accumulate between CPU cycles
 
+// OpenGL Vars
+var programId: gl.GLuint = undefined;
+var glCreateShader: gl.PFNGLCREATESHADERPROC = undefined;
+var glShaderSource: gl.PFNGLSHADERSOURCEPROC = undefined;
+var glCompileShader: gl.PFNGLCOMPILESHADERPROC = undefined;
+var glGetShaderiv: gl.PFNGLGETSHADERIVPROC = undefined;
+var glGetShaderInfoLog: gl.PFNGLGETSHADERINFOLOGPROC = undefined;
+var glDeleteShader: gl.PFNGLDELETESHADERPROC = undefined;
+var glAttachShader: gl.PFNGLATTACHSHADERPROC = undefined;
+var glCreateProgram: gl.PFNGLCREATEPROGRAMPROC = undefined;
+var glLinkProgram: gl.PFNGLLINKPROGRAMPROC = undefined;
+var glValidateProgram: gl.PFNGLVALIDATEPROGRAMPROC = undefined;
+var glGetProgramiv: gl.PFNGLGETPROGRAMIVPROC = undefined;
+var glGetProgramInfoLog: gl.PFNGLGETPROGRAMINFOLOGPROC = undefined;
+var glUseProgram: gl.PFNGLUSEPROGRAMPROC = undefined;
+
 pub fn main() !void {
     var args = std.process.args();
     defer args.deinit();
@@ -32,36 +56,49 @@ pub fn main() !void {
     const seed: u64 = @intCast(std.time.timestamp());
     const prng = std.Random.DefaultPrng.init(seed);
 
-    if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
-        c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
+    if (sdl.SDL_Init(sdl.SDL_INIT_VIDEO) != 0) {
+        sdl.SDL_Log("Unable to initialize SDL: %s", sdl.SDL_GetError());
         return error.SDLInitializationFailed;
     }
-    defer c.SDL_Quit();
+    defer sdl.SDL_Quit();
 
-    const screen = c.SDL_CreateWindow("zig8", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), c.SDL_WINDOW_OPENGL) orelse
+    const screen = sdl.SDL_CreateWindow("zig8", sdl.SDL_WINDOWPOS_UNDEFINED, sdl.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), sdl.SDL_WINDOW_OPENGL) orelse
         {
-            c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
+            sdl.SDL_Log("Unable to create window: %s", sdl.SDL_GetError());
             return error.SDLInitializationFailed;
         };
-    defer c.SDL_DestroyWindow(screen);
+    defer sdl.SDL_DestroyWindow(screen);
 
-    const renderer = c.SDL_CreateRenderer(screen, -1, 0) orelse {
-        c.SDL_Log("Unable to create renderer: %s", c.SDL_GetError());
+    _ = sdl.SDL_SetHint(sdl.SDL_HINT_RENDER_DRIVER, "opengl");
+
+    const renderer = sdl.SDL_CreateRenderer(screen, -1, sdl.SDL_RENDERER_ACCELERATED | sdl.SDL_RENDERER_TARGETTEXTURE) orelse {
+        sdl.SDL_Log("Unable to create renderer: %s", sdl.SDL_GetError());
         return error.SDLInitializationFailed;
     };
-    defer c.SDL_DestroyRenderer(renderer);
+    defer sdl.SDL_DestroyRenderer(renderer);
 
-    const screen_texture = c.SDL_CreateTexture(
+    var renderer_info: sdl.SDL_RendererInfo = undefined;
+    _ = sdl.SDL_GetRendererInfo(renderer, &renderer_info);
+
+    if (c.strncmp(renderer_info.name, "opengl", 6) != 1) {
+        std.debug.print("It's OpenGL!\n", .{});
+        const gl_extensions_initialized = init_gl_extensions();
+        if (!gl_extensions_initialized) {
+            std.debug.print("Could not initialize extensions!\n", .{});
+        }
+    }
+
+    const screen_texture = sdl.SDL_CreateTexture(
         renderer,
-        c.SDL_PIXELFORMAT_RGBA32,
-        c.SDL_TEXTUREACCESS_TARGET,
+        sdl.SDL_PIXELFORMAT_RGBA32,
+        sdl.SDL_TEXTUREACCESS_TARGET,
         screen_w,
         screen_h,
     ) orelse {
-        c.SDL_Log("Unable to create screen texture: %s", c.SDL_GetError());
+        sdl.SDL_Log("Unable to create screen texture: %s", sdl.SDL_GetError());
         return error.SDLInitializationFailed;
     };
-    defer c.SDL_DestroyTexture(screen_texture);
+    defer sdl.SDL_DestroyTexture(screen_texture);
 
     zig8.initialize(prng);
     try zig8.load(rom_path);
@@ -74,28 +111,28 @@ pub fn main() !void {
         const current_time = get_current_ms();
         const dt = current_time - last_update_time;
 
-        var event: c.SDL_Event = undefined;
-        while (c.SDL_PollEvent(&event) != 0) {
+        var event: sdl.SDL_Event = undefined;
+        while (sdl.SDL_PollEvent(&event) != 0) {
             switch (event.type) {
-                c.SDL_QUIT => {
+                sdl.SDL_QUIT => {
                     running = false;
                 },
-                c.SDL_KEYDOWN => {
+                sdl.SDL_KEYDOWN => {
                     switch (event.key.keysym.sym) {
-                        c.SDLK_ESCAPE => {
+                        sdl.SDLK_ESCAPE => {
                             running = false;
                         },
-                        c.SDLK_LEFTBRACKET => {
+                        sdl.SDLK_LEFTBRACKET => {
                             cycle_delay = if (cycle_delay < 10.0) cycle_delay + 1.0 else 0.0;
                         },
-                        c.SDLK_RIGHTBRACKET => {
+                        sdl.SDLK_RIGHTBRACKET => {
                             cycle_delay = if (cycle_delay > 0.0) cycle_delay - 1.0 else 0.0;
                         },
-                        c.SDLK_COMMA => {
+                        sdl.SDLK_COMMA => {
                             display_size_pct = @max(min_display_size_pct, display_size_pct - 0.1);
                             update_window_size = true;
                         },
-                        c.SDLK_PERIOD => {
+                        sdl.SDLK_PERIOD => {
                             display_size_pct = @min(max_display_size_pct, display_size_pct + 0.1);
                             update_window_size = true;
                         },
@@ -104,7 +141,7 @@ pub fn main() !void {
                         },
                     }
                 },
-                c.SDL_KEYUP => {
+                sdl.SDL_KEYUP => {
                     updatekeypresses(event.key);
                 },
                 else => {},
@@ -114,7 +151,7 @@ pub fn main() !void {
         display_w = @intFromFloat(@as(f64, @floatFromInt(base_display_w)) * display_size_pct);
         display_h = @intFromFloat(@as(f64, @floatFromInt(base_display_h)) * display_size_pct);
         if (update_window_size) {
-            c.SDL_SetWindowSize(screen, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)));
+            sdl.SDL_SetWindowSize(screen, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)));
             update_window_size = false;
         }
 
@@ -126,109 +163,109 @@ pub fn main() !void {
     }
 }
 
-fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
+fn updatekeypresses(kevt: sdl.SDL_KeyboardEvent) void {
     switch (kevt.type) {
-        c.SDL_KEYDOWN => {
+        sdl.SDL_KEYDOWN => {
             switch (kevt.keysym.sym) {
-                c.SDLK_1 => {
+                sdl.SDLK_1 => {
                     zig8.keypress(1);
                 },
-                c.SDLK_2 => {
+                sdl.SDLK_2 => {
                     zig8.keypress(2);
                 },
-                c.SDLK_3 => {
+                sdl.SDLK_3 => {
                     zig8.keypress(3);
                 },
-                c.SDLK_4 => {
+                sdl.SDLK_4 => {
                     zig8.keypress(12);
                 },
-                c.SDLK_q => {
+                sdl.SDLK_q => {
                     zig8.keypress(4);
                 },
-                c.SDLK_w => {
+                sdl.SDLK_w => {
                     zig8.keypress(5);
                 },
-                c.SDLK_e => {
+                sdl.SDLK_e => {
                     zig8.keypress(6);
                 },
-                c.SDLK_r => {
+                sdl.SDLK_r => {
                     zig8.keypress(13);
                 },
-                c.SDLK_a => {
+                sdl.SDLK_a => {
                     zig8.keypress(7);
                 },
-                c.SDLK_s => {
+                sdl.SDLK_s => {
                     zig8.keypress(8);
                 },
-                c.SDLK_d => {
+                sdl.SDLK_d => {
                     zig8.keypress(9);
                 },
-                c.SDLK_f => {
+                sdl.SDLK_f => {
                     zig8.keypress(14);
                 },
-                c.SDLK_z => {
+                sdl.SDLK_z => {
                     zig8.keypress(10);
                 },
-                c.SDLK_x => {
+                sdl.SDLK_x => {
                     zig8.keypress(0);
                 },
-                c.SDLK_c => {
+                sdl.SDLK_c => {
                     zig8.keypress(11);
                 },
-                c.SDLK_v => {
+                sdl.SDLK_v => {
                     zig8.keypress(15);
                 },
                 else => {},
             }
         },
-        c.SDL_KEYUP => {
+        sdl.SDL_KEYUP => {
             switch (kevt.keysym.sym) {
-                c.SDLK_1 => {
+                sdl.SDLK_1 => {
                     zig8.keyrelease(1);
                 },
-                c.SDLK_2 => {
+                sdl.SDLK_2 => {
                     zig8.keyrelease(2);
                 },
-                c.SDLK_3 => {
+                sdl.SDLK_3 => {
                     zig8.keyrelease(3);
                 },
-                c.SDLK_4 => {
+                sdl.SDLK_4 => {
                     zig8.keyrelease(12);
                 },
-                c.SDLK_q => {
+                sdl.SDLK_q => {
                     zig8.keyrelease(4);
                 },
-                c.SDLK_w => {
+                sdl.SDLK_w => {
                     zig8.keyrelease(5);
                 },
-                c.SDLK_e => {
+                sdl.SDLK_e => {
                     zig8.keyrelease(6);
                 },
-                c.SDLK_r => {
+                sdl.SDLK_r => {
                     zig8.keyrelease(13);
                 },
-                c.SDLK_a => {
+                sdl.SDLK_a => {
                     zig8.keyrelease(7);
                 },
-                c.SDLK_s => {
+                sdl.SDLK_s => {
                     zig8.keyrelease(8);
                 },
-                c.SDLK_d => {
+                sdl.SDLK_d => {
                     zig8.keyrelease(9);
                 },
-                c.SDLK_f => {
+                sdl.SDLK_f => {
                     zig8.keyrelease(14);
                 },
-                c.SDLK_z => {
+                sdl.SDLK_z => {
                     zig8.keyrelease(10);
                 },
-                c.SDLK_x => {
+                sdl.SDLK_x => {
                     zig8.keyrelease(0);
                 },
-                c.SDLK_c => {
+                sdl.SDLK_c => {
                     zig8.keyrelease(11);
                 },
-                c.SDLK_v => {
+                sdl.SDLK_v => {
                     zig8.keyrelease(15);
                 },
                 else => {},
@@ -238,8 +275,8 @@ fn updatekeypresses(kevt: c.SDL_KeyboardEvent) void {
     }
 }
 
-fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
-    _ = c.SDL_RenderClear(renderer);
+fn render(renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_Texture) void {
+    _ = sdl.SDL_RenderClear(renderer);
     var pixels: [2048]u32 = undefined;
     for (0..screen_w) |x| {
         for (0..screen_h) |y| {
@@ -251,10 +288,10 @@ fn render(renderer: *c.SDL_Renderer, texture: *c.SDL_Texture) void {
             }
         }
     }
-    _ = c.SDL_UpdateTexture(texture, null, &pixels, screen_w * 4);
-    const display_rect: c.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
-    _ = c.SDL_RenderCopy(renderer, texture, null, &display_rect);
-    c.SDL_RenderPresent(renderer);
+    _ = sdl.SDL_UpdateTexture(texture, null, &pixels, screen_w * 4);
+    const display_rect: sdl.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
+    _ = sdl.SDL_RenderCopy(renderer, texture, null, &display_rect);
+    sdl.SDL_RenderPresent(renderer);
 }
 
 fn get_current_ms() f64 {
@@ -262,13 +299,43 @@ fn get_current_ms() f64 {
 }
 
 fn get_performance_counter() f64 {
-    return @as(f64, @floatFromInt(c.SDL_GetPerformanceCounter()));
+    return @as(f64, @floatFromInt(sdl.SDL_GetPerformanceCounter()));
 }
 
 fn get_performance_frequency() f64 {
-    return @as(f64, @floatFromInt(c.SDL_GetPerformanceFrequency()));
+    return @as(f64, @floatFromInt(sdl.SDL_GetPerformanceFrequency()));
 }
 
 fn rgba(r: u8, g: u8, b: u8, a: u8) u32 {
     return (@as(u32, r) << 24) | (@as(u32, g) << 16) | (@as(u32, b) << 8) | @as(u32, a);
+}
+
+// OpenGL Helpers
+fn init_gl_extensions() bool {
+    glCreateShader = @ptrCast(sdl.SDL_GL_GetProcAddress("glCreateShader"));
+    glShaderSource = @ptrCast(sdl.SDL_GL_GetProcAddress("glShaderSource"));
+    glCompileShader = @ptrCast(sdl.SDL_GL_GetProcAddress("glCompileShader"));
+    glGetShaderiv = @ptrCast(sdl.SDL_GL_GetProcAddress("glGetShaderiv"));
+    glGetShaderInfoLog = @ptrCast(sdl.SDL_GL_GetProcAddress("glGetShaderInfoLog"));
+    glDeleteShader = @ptrCast(sdl.SDL_GL_GetProcAddress("glDeleteShader"));
+    glAttachShader = @ptrCast(sdl.SDL_GL_GetProcAddress("glAttachShader"));
+    glCreateProgram = @ptrCast(sdl.SDL_GL_GetProcAddress("glCreateProgram"));
+    glLinkProgram = @ptrCast(sdl.SDL_GL_GetProcAddress("glLinkProgram"));
+    glValidateProgram = @ptrCast(sdl.SDL_GL_GetProcAddress("glValidateProgram"));
+    glGetProgramiv = @ptrCast(sdl.SDL_GL_GetProcAddress("glGetProgramiv"));
+    glGetProgramInfoLog = @ptrCast(sdl.SDL_GL_GetProcAddress("glGetProgramInfoLog"));
+    glUseProgram = @ptrCast(sdl.SDL_GL_GetProcAddress("glUseProgram"));
+    return glCreateShader != null and
+        glShaderSource != null and
+        glCompileShader != null and
+        glGetShaderiv != null and
+        glGetShaderInfoLog != null and
+        glDeleteShader != null and
+        glAttachShader != null and
+        glCreateProgram != null and
+        glLinkProgram != null and
+        glValidateProgram != null and
+        glGetProgramiv != null and
+        glGetProgramInfoLog != null and
+        glUseProgram != null;
 }
