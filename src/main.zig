@@ -31,7 +31,7 @@ var last_update_time: f64 = 0.0;
 var cycle_delay: f64 = 4.0; // ms to accumulate between CPU cycles
 
 // OpenGL Vars
-var programId: gl.GLuint = undefined;
+var program_id: gl.GLuint = undefined;
 var glCreateShader: gl.PFNGLCREATESHADERPROC = undefined;
 var glShaderSource: gl.PFNGLSHADERSOURCEPROC = undefined;
 var glCompileShader: gl.PFNGLCOMPILESHADERPROC = undefined;
@@ -82,10 +82,11 @@ pub fn main() !void {
 
     if (c.strncmp(renderer_info.name, "opengl", 6) != 1) {
         std.debug.print("It's OpenGL!\n", .{});
-        const gl_extensions_initialized = init_gl_extensions();
-        if (!gl_extensions_initialized) {
+        if (!init_gl_extensions()) {
             std.debug.print("Could not initialize extensions!\n", .{});
         }
+
+        program_id = try compile_program();
     }
 
     const screen_texture = sdl.SDL_CreateTexture(
@@ -159,7 +160,7 @@ pub fn main() !void {
             last_update_time = current_time;
             zig8.cycle();
         }
-        render(renderer, screen_texture);
+        render(screen, renderer, screen_texture);
     }
 }
 
@@ -275,7 +276,7 @@ fn updatekeypresses(kevt: sdl.SDL_KeyboardEvent) void {
     }
 }
 
-fn render(renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_Texture) void {
+fn render(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_Texture) void {
     _ = sdl.SDL_RenderClear(renderer);
     var pixels: [2048]u32 = undefined;
     for (0..screen_w) |x| {
@@ -289,9 +290,48 @@ fn render(renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_Texture) void {
         }
     }
     _ = sdl.SDL_UpdateTexture(texture, null, &pixels, screen_w * 4);
+    render_present(win, renderer, texture);
     const display_rect: sdl.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
     _ = sdl.SDL_RenderCopy(renderer, texture, null, &display_rect);
-    sdl.SDL_RenderPresent(renderer);
+}
+
+fn render_present(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, back_buffer: *sdl.SDL_Texture) void {
+    var old_program_id: gl.GLint = undefined;
+
+    _ = sdl.SDL_SetRenderTarget(renderer, null);
+    _ = sdl.SDL_RenderClear(renderer);
+    _ = sdl.SDL_GL_BindTexture(back_buffer, null, null);
+
+    if (program_id != 0) {
+        gl.glGetIntegerv(gl.GL_CURRENT_PROGRAM, &old_program_id);
+        glUseProgram.?(program_id);
+    }
+
+    const minx: gl.GLfloat = 0.0;
+    const miny: gl.GLfloat = 0.0;
+    const maxx: gl.GLfloat = @floatFromInt(display_w);
+    const maxy: gl.GLfloat = @floatFromInt(display_h);
+    const minu: gl.GLfloat = 0.0;
+    const maxu: gl.GLfloat = 1.0;
+    const minv: gl.GLfloat = 0.0;
+    const maxv: gl.GLfloat = 1.0;
+
+    gl.glBegin(gl.GL_TRIANGLE_STRIP);
+    gl.glTexCoord2f(minu, minv);
+    gl.glVertex2f(minx, miny);
+    gl.glTexCoord2f(maxu, minv);
+    gl.glVertex2f(maxx, miny);
+    gl.glTexCoord2f(minu, maxv);
+    gl.glVertex2f(minx, maxy);
+    gl.glTexCoord2f(maxu, maxv);
+    gl.glVertex2f(maxx, maxy);
+    gl.glEnd();
+
+    sdl.SDL_GL_SwapWindow(win);
+
+    if (program_id != 0) {
+        glUseProgram.?(@intCast(old_program_id));
+    }
 }
 
 fn get_current_ms() f64 {
@@ -339,3 +379,220 @@ fn init_gl_extensions() bool {
         glGetProgramInfoLog != null and
         glUseProgram != null;
 }
+
+fn compile_program() !gl.GLuint {
+    const alloc = std.heap.page_allocator;
+    var prg_id: gl.GLuint = 0;
+    var vtx_shader_id: gl.GLuint = undefined;
+    var frg_shader_id: gl.GLuint = undefined;
+
+    prg_id = glCreateProgram.?();
+
+    vtx_shader_id = try compile_shader(vtx_source, gl.GL_VERTEX_SHADER);
+    frg_shader_id = try compile_shader(frg_source, gl.GL_FRAGMENT_SHADER);
+
+    glAttachShader.?(prg_id, vtx_shader_id);
+    glAttachShader.?(prg_id, frg_shader_id);
+    glLinkProgram.?(prg_id);
+    glValidateProgram.?(prg_id);
+
+    var log_length: gl.GLint = undefined;
+    glGetProgramiv.?(prg_id, gl.GL_INFO_LOG_LENGTH, &log_length);
+
+    if (log_length > 0) {
+        const log: []u8 = try alloc.alloc(u8, @as(usize, @intCast(log_length)));
+        defer alloc.free(log);
+
+        glGetProgramInfoLog.?(prg_id, log_length, &log_length, @ptrCast(log));
+        std.debug.print("GL Prog Info Log:\n{s}", .{log});
+    }
+
+    glDeleteShader.?(vtx_shader_id);
+    glDeleteShader.?(frg_shader_id);
+
+    return prg_id;
+}
+
+fn compile_shader(source: []const u8, shader_type: gl.GLuint) !gl.GLuint {
+    const alloc = std.heap.page_allocator;
+    const result: gl.GLuint = glCreateShader.?(shader_type);
+    glShaderSource.?(result, 1, @ptrCast(&source), null);
+    glCompileShader.?(result);
+
+    // check for compilation errors
+    var shader_compiled: gl.GLint = gl.GL_FALSE;
+    _ = glGetShaderiv.?(result, gl.GL_COMPILE_STATUS, &shader_compiled);
+    if (shader_compiled != gl.GL_TRUE) {
+        std.debug.print("Error compiling shader: {d}\n", .{result});
+        var log_length: gl.GLint = undefined;
+        glGetShaderiv.?(result, gl.GL_INFO_LOG_LENGTH, &log_length);
+
+        if (log_length > 0) {
+            const log: []u8 = try alloc.alloc(u8, @as(usize, @intCast(log_length)));
+            defer alloc.free(log);
+
+            glGetShaderInfoLog.?(result, log_length, &log_length, @ptrCast(log));
+            std.debug.print("Compile log: {s}\n", .{log});
+        }
+    } else {
+        std.debug.print("Shader compiled correctly!\n", .{});
+    }
+
+    return result;
+}
+
+const vtx_source =
+    \\ varying vec4 v_color;
+    \\ varying vec2 v_texCoord;
+    \\
+    \\ void main()
+    \\     {
+    \\         gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    \\         v_color = gl_Color;
+    \\         v_texCoord = vec2(gl_MultiTexCoord0);
+    \\ }
+;
+
+const frg_source =
+    \\ //
+    \\ // PUBLIC DOMAIN CRT STYLED SCAN-LINE SHADER
+    \\ //
+    \\ //   by Timothy Lottes
+    \\ //
+    \\ // This is more along the style of a really good CGA arcade monitor.
+    \\ // With RGB inputs instead of NTSC.
+    \\ // The shadow mask example has the mask rotated 90 degrees for less chromatic aberration.
+    \\ //
+    \\ // Left it unoptimized to show the theory behind the algorithm.
+    \\ //
+    \\ // It is an example what I personally would want as a display option for pixel art games.
+    \\ // Please take and use, change, or whatever.
+    \\ //
+    \\
+    \\ varying vec4 v_color;
+    \\ varying vec2 v_texCoord;
+    \\
+    \\ uniform sampler2D tex0;
+    \\
+    \\ // Hardness of scanline.
+    \\ //  -8.0 = soft
+    \\ // -16.0 = medium
+    \\ float hardScan=-8.0;
+    \\
+    \\ // Hardness of pixels in scanline.
+    \\ // -2.0 = soft
+    \\ // -4.0 = hard
+    \\ float hardPix=-2.0;
+    \\
+    \\ // Display warp.
+    \\ // 0.0 = none
+    \\ // 1.0/8.0 = extreme
+    \\ vec2 warp=vec2(1.0/32.0,1.0/24.0);
+    \\
+    \\ // Amount of shadow mask.
+    \\ float maskDark=1.0;
+    \\ float maskLight=1.5;
+    \\
+    \\ vec2 res = vec2(640.0,480.0); // /3.0
+    \\
+    \\ //------------------------------------------------------------------------
+    \\
+    \\ // sRGB to Linear.
+    \\ // Assuing using sRGB typed textures this should not be needed.
+    \\ float ToLinear1(float c){return(c<=0.04045)?c/12.92:pow((c+0.055)/1.055,2.4);}
+    \\ vec3 ToLinear(vec3 c){return vec3(ToLinear1(c.r),ToLinear1(c.g),ToLinear1(c.b));}
+    \\
+    \\ // Linear to sRGB.
+    \\ // Assuing using sRGB typed textures this should not be needed.
+    \\ float ToSrgb1(float c){return(c<0.0031308?c*12.92:1.055*pow(c,0.41666)-0.055);}
+    \\ vec3 ToSrgb(vec3 c){return vec3(ToSrgb1(c.r),ToSrgb1(c.g),ToSrgb1(c.b));}
+    \\
+    \\ // Nearest emulated sample given floating point position and texel offset.
+    \\ // Also zero's off screen.
+    \\ vec3 Fetch(vec2 pos,vec2 off){
+    \\   pos=floor(pos*res+off)/res;
+    \\   if(max(abs(pos.x-0.5),abs(pos.y-0.5))>0.5)return vec3(0.0,0.0,0.0);
+    \\   return ToLinear(texture2D(tex0,pos.xy,-16.0).rgb);}
+    \\
+    \\ // Distance in emulated pixels to nearest texel.
+    \\ vec2 Dist(vec2 pos){pos=pos*res;return -((pos-floor(pos))-vec2(0.5));}
+    \\
+    \\ // 1D Gaussian.
+    \\ float Gaus(float pos,float scale){return exp2(scale*pos*pos);}
+    \\
+    \\ // 3-tap Gaussian filter along horz line.
+    \\ vec3 Horz3(vec2 pos,float off){
+    \\   vec3 b=Fetch(pos,vec2(-1.0,off));
+    \\   vec3 c=Fetch(pos,vec2( 0.0,off));
+    \\   vec3 d=Fetch(pos,vec2( 1.0,off));
+    \\   float dst=Dist(pos).x;
+    \\   // Convert distance to weight.
+    \\   float scale=hardPix;
+    \\   float wb=Gaus(dst-1.0,scale);
+    \\   float wc=Gaus(dst+0.0,scale);
+    \\   float wd=Gaus(dst+1.0,scale);
+    \\   // Return filtered sample.
+    \\   return (b*wb+c*wc+d*wd)/(wb+wc+wd);}
+    \\
+    \\ // 5-tap Gaussian filter along horz line.
+    \\ vec3 Horz5(vec2 pos,float off){
+    \\   vec3 a=Fetch(pos,vec2(-2.0,off));
+    \\   vec3 b=Fetch(pos,vec2(-1.0,off));
+    \\   vec3 c=Fetch(pos,vec2( 0.0,off));
+    \\   vec3 d=Fetch(pos,vec2( 1.0,off));
+    \\   vec3 e=Fetch(pos,vec2( 2.0,off));
+    \\   float dst=Dist(pos).x;
+    \\   // Convert distance to weight.
+    \\   float scale=hardPix;
+    \\   float wa=Gaus(dst-2.0,scale);
+    \\   float wb=Gaus(dst-1.0,scale);
+    \\   float wc=Gaus(dst+0.0,scale);
+    \\   float wd=Gaus(dst+1.0,scale);
+    \\   float we=Gaus(dst+2.0,scale);
+    \\   // Return filtered sample.
+    \\   return (a*wa+b*wb+c*wc+d*wd+e*we)/(wa+wb+wc+wd+we);}
+    \\
+    \\ // Return scanline weight.
+    \\ float Scan(vec2 pos,float off){
+    \\   float dst=Dist(pos).y;
+    \\   return Gaus(dst+off,hardScan);}
+    \\
+    \\ // Allow nearest three lines to effect pixel.
+    \\ vec3 Tri(vec2 pos){
+    \\   vec3 a=Horz3(pos,-1.0);
+    \\   vec3 b=Horz5(pos, 0.0);
+    \\   vec3 c=Horz3(pos, 1.0);
+    \\   float wa=Scan(pos,-1.0);
+    \\   float wb=Scan(pos, 0.0);
+    \\   float wc=Scan(pos, 1.0);
+    \\   return a*wa+b*wb+c*wc;}
+    \\
+    \\ // Distortion of scanlines, and end of screen alpha.
+    \\ vec2 Warp(vec2 pos){
+    \\   pos=pos*2.0-1.0;
+    \\   pos*=vec2(1.0+(pos.y*pos.y)*warp.x,1.0+(pos.x*pos.x)*warp.y);
+    \\   return pos*0.5+0.5;}
+    \\
+    \\ // Shadow mask.
+    \\ vec3 Mask(vec2 pos){
+    \\   pos.x+=pos.y*3.0;
+    \\   vec3 mask=vec3(maskDark,maskDark,maskDark);
+    \\   pos.x=fract(pos.x/6.0);
+    \\   if(pos.x<0.333)mask.r=maskLight;
+    \\   else if(pos.x<0.666)mask.g=maskLight;
+    \\   else mask.b=maskLight;
+    \\   return mask;}
+    \\
+    \\ // Draw dividing bars.
+    \\ float Bar(float pos,float bar){pos-=bar;return pos*pos<4.0?0.0:1.0;}
+    \\
+    \\ // Entry.
+    \\ void main(){
+    \\   // Unmodified.
+    \\   vec2 pos=Warp(v_texCoord);
+    \\   vec4 fragColor;
+    \\   fragColor.rgb=Tri(pos)*Mask(gl_FragCoord.xy);
+    \\   fragColor.rgb=ToSrgb(fragColor.rgb);
+    \\   gl_FragColor=v_color * vec4(fragColor.rgb, 1.0);
+    \\ }
+;

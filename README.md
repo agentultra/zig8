@@ -64,8 +64,10 @@ That should install `zig8` at `zig-out/bin/zig8`.
 - [ ] Emulator
   - [x] User-controlled CPU hz
   - [x] Wait for keypress (Fx0A)
+  - [x] Retro CRT shader effect
+  - [ ] CRT effect toggle
   - [ ] Cycle video pallets
-  - [ ] Video scaling
+  - [x] Video scaling
   - [ ] Super-Chip8 (optional)
   - [ ] Quirks
   - [x] Delay Timer
