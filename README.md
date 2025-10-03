@@ -43,7 +43,7 @@ up the emulator with the `[` and `]` keys respectively if needed.
 You can resize the display with `,` and `.` to decrease/increase the
 size from the default.
 
-You can swap color palettes with the `\`` (backtick) key.
+You can swap color palettes with the ````` (backtick) key.
 
 ## Building
 
@@ -68,7 +68,7 @@ That should install `zig8` at `zig-out/bin/zig8`.
   - [x] Wait for keypress (Fx0A)
   - [x] Retro CRT shader effect
   - [ ] CRT effect toggle
-  - [ ] Cycle video pallets
+  - [x] Cycle video pallets
   - [x] Video scaling
   - [ ] Super-Chip8 (optional)
   - [ ] Quirks
