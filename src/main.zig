@@ -46,6 +46,20 @@ var glGetProgramiv: gl.PFNGLGETPROGRAMIVPROC = undefined;
 var glGetProgramInfoLog: gl.PFNGLGETPROGRAMINFOLOGPROC = undefined;
 var glUseProgram: gl.PFNGLUSEPROGRAMPROC = undefined;
 
+const palette_light = [_]u32{
+    rgba(255, 255, 255, 255),
+    rgba(255, 166, 7, 255),
+    rgba(15, 56, 15, 255),
+};
+
+const palette_dark = [_]u32{
+    rgba(0, 0, 0, 0),
+    rgba(8, 8, 8, 255),
+    rgba(139, 172, 15, 255),
+};
+
+var selected_palette: usize = 0;
+
 pub fn main() !void {
     var args = std.process.args();
     defer args.deinit();
@@ -136,6 +150,9 @@ pub fn main() !void {
                         sdl.SDLK_PERIOD => {
                             display_size_pct = @min(max_display_size_pct, display_size_pct + 0.1);
                             update_window_size = true;
+                        },
+                        sdl.SDLK_BACKQUOTE => {
+                            selected_palette = @mod(selected_palette + 1, palette_light.len);
                         },
                         else => {
                             updatekeypresses(event.key);
@@ -283,9 +300,9 @@ fn render(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_T
         for (0..screen_h) |y| {
             const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
             if (pixel_active) {
-                pixels[(screen_w * y) + x] = rgba(255, 255, 255, 255);
+                pixels[(screen_w * y) + x] = palette_light[selected_palette];
             } else {
-                pixels[(screen_w * y) + x] = rgba(0, 0, 0, 0);
+                pixels[(screen_w * y) + x] = palette_dark[selected_palette];
             }
         }
     }
@@ -347,7 +364,7 @@ fn get_performance_frequency() f64 {
 }
 
 fn rgba(r: u8, g: u8, b: u8, a: u8) u32 {
-    return (@as(u32, r) << 24) | (@as(u32, g) << 16) | (@as(u32, b) << 8) | @as(u32, a);
+    return (@as(u32, a) << 24) | (@as(u32, b) << 16) | (@as(u32, g) << 8) | @as(u32, r);
 }
 
 // OpenGL Helpers

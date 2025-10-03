@@ -43,6 +43,8 @@ up the emulator with the `[` and `]` keys respectively if needed.
 You can resize the display with `,` and `.` to decrease/increase the
 size from the default.
 
+You can swap color palettes with the `\`` (backtick) key.
+
 ## Building
 
 You'll need Zig `0.15.1` and SDL2 installed:
