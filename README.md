@@ -45,6 +45,8 @@ size from the default.
 
 You can swap color palettes with the ````` (backtick) key.
 
+You can toggle the shader effect off if you prefer with `\`.
+
 ## Building
 
 You'll need Zig `0.15.1` and SDL2 installed:
@@ -67,7 +69,7 @@ That should install `zig8` at `zig-out/bin/zig8`.
   - [x] User-controlled CPU hz
   - [x] Wait for keypress (Fx0A)
   - [x] Retro CRT shader effect
-  - [ ] CRT effect toggle
+  - [x] CRT effect toggle
   - [x] Cycle video pallets
   - [x] Video scaling
   - [ ] Super-Chip8 (optional)

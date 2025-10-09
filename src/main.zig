@@ -25,6 +25,7 @@ var display_size_pct: f64 = 1.0;
 const min_display_size_pct: f64 = 0.5;
 const max_display_size_pct: f64 = 3.0;
 var update_window_size: bool = false; // update window when display size changed
+var toggle_shader: bool = true; // true = use shader
 
 // Simulating CPU hz
 var last_update_time: f64 = 0.0;
@@ -153,6 +154,9 @@ pub fn main() !void {
                         },
                         sdl.SDLK_BACKQUOTE => {
                             selected_palette = @mod(selected_palette + 1, palette_light.len);
+                        },
+                        sdl.SDLK_BACKSLASH => {
+                            toggle_shader ^= true;
                         },
                         else => {
                             updatekeypresses(event.key);
@@ -319,7 +323,7 @@ fn render_present(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, back_buffer
     _ = sdl.SDL_RenderClear(renderer);
     _ = sdl.SDL_GL_BindTexture(back_buffer, null, null);
 
-    if (program_id != 0) {
+    if (program_id != 0 and toggle_shader) {
         gl.glGetIntegerv(gl.GL_CURRENT_PROGRAM, &old_program_id);
         glUseProgram.?(program_id);
     }
@@ -346,7 +350,7 @@ fn render_present(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, back_buffer
 
     sdl.SDL_GL_SwapWindow(win);
 
-    if (program_id != 0) {
+    if (program_id != 0 and toggle_shader) {
         glUseProgram.?(@intCast(old_program_id));
     }
 }
