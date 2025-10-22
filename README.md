@@ -49,7 +49,7 @@ You can toggle the shader effect off if you prefer with `\`.
 
 ## Building
 
-You'll need Zig `0.15.1` and SDL2 installed:
+You'll need Zig `0.15.1`, SDL2 and an OpenGL-capable driver installed:
 
     > zig build -Dinstall
 
