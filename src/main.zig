@@ -17,13 +17,13 @@ const screen_w = 64;
 const screen_h = 32;
 
 // The display dimensions in pixel units
-const base_display_w: u64 = 256;
-const base_display_h: u64 = 128;
+const base_display_w: u64 = 1024;
+const base_display_h: u64 = 512;
 var display_w: u64 = base_display_w;
 var display_h: u64 = base_display_h;
 var display_size_pct: f64 = 1.0;
 const min_display_size_pct: f64 = 0.5;
-const max_display_size_pct: f64 = 3.0;
+const max_display_size_pct: f64 = 4.0;
 var update_window_size: bool = false; // update window when display size changed
 var toggle_shader: bool = true; // true = use shader
 
