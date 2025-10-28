@@ -1,5 +1,6 @@
 const std = @import("std");
 const zig8 = @import("zig8");
+const beeper = @import("beep");
 const c = @cImport({
     @cInclude("string.h");
 });
@@ -180,6 +181,9 @@ pub fn main() !void {
         if (dt > cycle_delay) {
             last_update_time = current_time;
             zig8.cycle();
+        }
+        if (zig8.should_beep()) {
+            beeper.beep(440, 500);
         }
         render(screen, renderer, screen_texture);
     }

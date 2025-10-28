@@ -5,6 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const zig8 = b.addModule("zig8", .{ .root_source_file = b.path("src/zig8.zig") });
+    const beep = b.addModule("beep", .{ .root_source_file = b.path("src/beep.zig") });
     const exe = b.addExecutable(.{
         .name = "zig8",
         .root_module = b.createModule(.{
@@ -15,6 +16,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("zig8", zig8);
+    exe.root_module.addImport("beep", beep);
     exe.linkSystemLibrary("opengl");
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
