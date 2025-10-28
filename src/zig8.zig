@@ -61,6 +61,10 @@ pub fn initialize(prng: std.Random.DefaultPrng) void {
     sound_timer = 0;
 }
 
+pub fn should_beep() bool {
+    return sound_timer == 0;
+}
+
 pub fn cycle() void {
     opcode = @as(u16, memory[pc]) << 8 | memory[pc + 1];
 
@@ -178,7 +182,6 @@ pub fn cycle() void {
         delay_timer = delay_timer - 1;
     }
     if (sound_timer > 0) {
-        //std.fs.File.writer(std.io.getStdOut()).writeAll("BEEEP!\n");
         sound_timer = sound_timer - 1;
     }
 }
