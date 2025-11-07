@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("zig8", zig8);
     exe.root_module.addImport("beep", beep);
+    exe.linkSystemLibrary("asound");
     exe.linkSystemLibrary("opengl");
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
