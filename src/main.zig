@@ -1,6 +1,6 @@
 const std = @import("std");
 const zig8 = @import("zig8");
-const beeper = @import("beep");
+//const beeper = @import("beep");
 const c = @cImport({
     @cInclude("string.h");
 });
@@ -78,6 +78,12 @@ pub fn main() !void {
     }
     defer sdl.SDL_Quit();
 
+    if (sdl.SDL_Init(sdl.SDL_INIT_AUDIO) != 0) {
+        sdl.SDL_Log("Unable to initialize SDL: %s", sdl.SDL_GetError());
+        return error.SDLInitializationFailed;
+    }
+    defer sdl.SDL_Quit();
+
     const screen = sdl.SDL_CreateWindow("zig8", sdl.SDL_WINDOWPOS_UNDEFINED, sdl.SDL_WINDOWPOS_UNDEFINED, @as(c_int, @intCast(display_w)), @as(c_int, @intCast(display_h)), sdl.SDL_WINDOW_OPENGL) orelse
         {
             sdl.SDL_Log("Unable to create window: %s", sdl.SDL_GetError());
@@ -116,6 +122,12 @@ pub fn main() !void {
         return error.SDLInitializationFailed;
     };
     defer sdl.SDL_DestroyTexture(screen_texture);
+
+    const audio_stream = sdl.SDL_NewAudioStream(sdl.AUDIO_U8, 1, 440, sdl.AUDIO_U8, 1, 440) orelse {
+        sdl.SDL_Log("Unable to init audio stream: %s", sdl.SDL_GetError());
+        return error.SDLInitializationFailed;
+    };
+    defer sdl.SDL_FreeAudioStream(audio_stream);
 
     zig8.initialize(prng);
     try zig8.load(rom_path);
@@ -183,7 +195,19 @@ pub fn main() !void {
             zig8.cycle();
         }
         if (zig8.should_beep()) {
-            beeper.beep(440, 50) catch std.log.info("Beep!", .{});
+            var buf: [2400]u8 = undefined;
+            for (0..200 / 50) |_| {
+                for (0..buf.len - 1) |j| {
+                    buf[j] = @as(u8, @intCast(j % 255));
+                }
+            }
+            if (sdl.SDL_AudioStreamPut(audio_stream, &buf, buf.len) != 0) {
+                sdl.SDL_Log("Unable to put data in audio stream: %s", sdl.SDL_GetError());
+            }
+            if (sdl.SDL_AudioStreamFlush(audio_stream) != 0) {
+                sdl.SDL_Log("Unable to flush audio stream: %s", sdl.SDL_GetError());
+            }
+            std.debug.print("BEEP\n", .{});
         }
         render(screen, renderer, screen_texture);
     }
