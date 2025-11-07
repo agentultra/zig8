@@ -183,7 +183,7 @@ pub fn main() !void {
             zig8.cycle();
         }
         if (zig8.should_beep()) {
-            beeper.beep(440, 500);
+            beeper.beep(440, 50) catch std.log.info("Beep!", .{});
         }
         render(screen, renderer, screen_texture);
     }
