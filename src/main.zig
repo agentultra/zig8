@@ -72,13 +72,7 @@ pub fn main() !void {
     const seed: u64 = @intCast(std.time.timestamp());
     const prng = std.Random.DefaultPrng.init(seed);
 
-    if (sdl.SDL_Init(sdl.SDL_INIT_VIDEO) != 0) {
-        sdl.SDL_Log("Unable to initialize SDL: %s", sdl.SDL_GetError());
-        return error.SDLInitializationFailed;
-    }
-    defer sdl.SDL_Quit();
-
-    if (sdl.SDL_Init(sdl.SDL_INIT_AUDIO) != 0) {
+    if (sdl.SDL_Init(sdl.SDL_INIT_VIDEO | sdl.SDL_INIT_AUDIO) != 0) {
         sdl.SDL_Log("Unable to initialize SDL: %s", sdl.SDL_GetError());
         return error.SDLInitializationFailed;
     }
@@ -196,7 +190,7 @@ pub fn main() !void {
         }
         if (zig8.should_beep()) {
             var buf: [2400]u8 = undefined;
-            for (0..200 / 50) |_| {
+            for (0..2000 / 50) |_| {
                 for (0..buf.len - 1) |j| {
                     buf[j] = @as(u8, @intCast(j % 255));
                 }
