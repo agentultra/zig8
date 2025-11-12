@@ -117,11 +117,22 @@ pub fn main() !void {
     };
     defer sdl.SDL_DestroyTexture(screen_texture);
 
-    const audio_stream = sdl.SDL_NewAudioStream(sdl.AUDIO_U8, 1, 440, sdl.AUDIO_U8, 1, 440) orelse {
-        sdl.SDL_Log("Unable to init audio stream: %s", sdl.SDL_GetError());
+    var desired_audio_spec: sdl.SDL_AudioSpec = .{};
+    desired_audio_spec.freq = 44000;
+    desired_audio_spec.format = sdl.AUDIO_S32LSB;
+    desired_audio_spec.samples = 512;
+
+    const audio_device = sdl.SDL_OpenAudioDevice(undefined, 0, &desired_audio_spec, undefined, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE) orelse {
+        sdl.SDL_Log("Unable to open audio device: %s", sdl.SDL_GetError());
         return error.SDLInitializationFailed;
     };
-    defer sdl.SDL_FreeAudioStream(audio_stream);
+    defer sdl.SDL_CloseAudioDevice(audio_device);
+
+    // const audio_stream = sdl.SDL_NewAudioStream(sdl.AUDIO_U8, 1, 440, sdl.AUDIO_U8, 1, 440) orelse {
+    //     sdl.SDL_Log("Unable to init audio stream: %s", sdl.SDL_GetError());
+    //     return error.SDLInitializationFailed;
+    // };
+    //defer sdl.SDL_FreeAudioStream(audio_stream);
 
     zig8.initialize(prng);
     try zig8.load(rom_path);
@@ -195,12 +206,13 @@ pub fn main() !void {
                     buf[j] = @as(u8, @intCast(j % 255));
                 }
             }
-            if (sdl.SDL_AudioStreamPut(audio_stream, &buf, buf.len) != 0) {
-                sdl.SDL_Log("Unable to put data in audio stream: %s", sdl.SDL_GetError());
-            }
-            if (sdl.SDL_AudioStreamFlush(audio_stream) != 0) {
-                sdl.SDL_Log("Unable to flush audio stream: %s", sdl.SDL_GetError());
-            }
+            // if (sdl.SDL_AudioStreamPut(audio_stream, &buf, buf.len) != 0) {
+            //     sdl.SDL_Log("Unable to put data in audio stream: %s", sdl.SDL_GetError());
+            // }
+            // if (sdl.SDL_AudioStreamFlush(audio_stream) != 0) {
+            //     sdl.SDL_Log("Unable to flush audio stream: %s", sdl.SDL_GetError());
+            // }
+            _ = sdl.SDL_QueueAudio(audio_device, &buf, buf.len);
             std.debug.print("BEEP\n", .{});
         }
         render(screen, renderer, screen_texture);
