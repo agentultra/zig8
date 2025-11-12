@@ -18,6 +18,7 @@ var opcode: u16 = undefined;
 var memory: [4096]u8 = undefined; // main memory
 var V: [16]u8 = undefined; // registers V1 - VE
 var I: u16 = undefined; // index register
+var ST: u8 = undefined; // sound active register
 var pc: u16 = undefined; // program counter
 var stack: [16]u16 = undefined; // program stack
 var sp: u16 = undefined; // stack pointer
@@ -27,7 +28,7 @@ var keys: [16]u8 = undefined; // keys
 var rand: std.Random.DefaultPrng = undefined; // prng random number generator
 
 var delay_timer: u8 = undefined; // count at 60hz down to zero
-var sound_timer: u16 = undefined;
+var sound_timer: u16 = undefined; // count at 60hz down to zero
 
 const pixMask: u8 = 0x80;
 
@@ -45,6 +46,7 @@ pub fn initialize(prng: std.Random.DefaultPrng) void {
         reg.* = 0;
     }
     I = 0;
+    ST = 0;
     for (&stack) |*s| {
         s.* = 0;
     }
@@ -62,7 +64,7 @@ pub fn initialize(prng: std.Random.DefaultPrng) void {
 }
 
 pub fn should_beep() bool {
-    return sound_timer == 0;
+    return ST != 0;
 }
 
 pub fn cycle() void {
@@ -184,6 +186,7 @@ pub fn cycle() void {
     if (sound_timer > 0) {
         sound_timer = sound_timer - 1;
     }
+    if (sound_timer <= 0) ST = 0;
 }
 
 fn handle_0xxx(opc: u16) void {
@@ -338,6 +341,7 @@ fn handle_Fxxx(opc: u16) void {
         0x0018 => { // LD ST, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);
             sound_timer = V[x];
+            ST = 1;
         },
         0x001E => { // ADD I, Vx
             const x: u4 = @intCast((opc & 0x0F00) >> 8);

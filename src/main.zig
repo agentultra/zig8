@@ -127,12 +127,6 @@ pub fn main() !void {
 
     sdl.SDL_PauseAudioDevice(audio_device, 0);
 
-    // const audio_stream = sdl.SDL_NewAudioStream(sdl.AUDIO_U8, 1, 440, sdl.AUDIO_U8, 1, 440) orelse {
-    //     sdl.SDL_Log("Unable to init audio stream: %s", sdl.SDL_GetError());
-    //     return error.SDLInitializationFailed;
-    // };
-    //defer sdl.SDL_FreeAudioStream(audio_stream);
-
     zig8.initialize(prng);
     try zig8.load(rom_path);
 
@@ -199,20 +193,17 @@ pub fn main() !void {
             zig8.cycle();
         }
         if (zig8.should_beep()) {
+            sdl.SDL_PauseAudioDevice(audio_device, 0);
             var buf: [2400]u8 = undefined;
-            for (0..2000 / 50) |_| {
+
+            for (0..2400 / 50) |_| {
                 for (0..buf.len - 1) |j| {
-                    buf[j] = @as(u8, @intCast(j % 255));
+                    buf[j] = @as(u8, @intCast(j % 255)) / 2;
                 }
             }
-            // if (sdl.SDL_AudioStreamPut(audio_stream, &buf, buf.len) != 0) {
-            //     sdl.SDL_Log("Unable to put data in audio stream: %s", sdl.SDL_GetError());
-            // }
-            // if (sdl.SDL_AudioStreamFlush(audio_stream) != 0) {
-            //     sdl.SDL_Log("Unable to flush audio stream: %s", sdl.SDL_GetError());
-            // }
+
             _ = sdl.SDL_QueueAudio(audio_device, &buf, buf.len);
-            std.debug.print("BEEP\n", .{});
+            sdl.SDL_PauseAudioDevice(audio_device, 1);
         }
         render(screen, renderer, screen_texture);
     }
