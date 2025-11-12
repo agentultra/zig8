@@ -122,11 +122,10 @@ pub fn main() !void {
     desired_audio_spec.format = sdl.AUDIO_S32LSB;
     desired_audio_spec.samples = 512;
 
-    const audio_device = sdl.SDL_OpenAudioDevice(undefined, 0, &desired_audio_spec, undefined, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE) orelse {
-        sdl.SDL_Log("Unable to open audio device: %s", sdl.SDL_GetError());
-        return error.SDLInitializationFailed;
-    };
+    const audio_device = sdl.SDL_OpenAudioDevice(null, 0, &desired_audio_spec, null, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE);
     defer sdl.SDL_CloseAudioDevice(audio_device);
+
+    sdl.SDL_PauseAudioDevice(audio_device, 0);
 
     // const audio_stream = sdl.SDL_NewAudioStream(sdl.AUDIO_U8, 1, 440, sdl.AUDIO_U8, 1, 440) orelse {
     //     sdl.SDL_Log("Unable to init audio stream: %s", sdl.SDL_GetError());
