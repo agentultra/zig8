@@ -391,6 +391,8 @@ fn do_audio(audio_spec: sdl.SDL_AudioSpec, audio_device: sdl.SDL_AudioDeviceID, 
             }
 
             _ = sdl.SDL_QueueAudio(audio_device, @ptrCast(buf.ptr), @as(u32, @intCast(buf.len)));
+        } else {
+            sdl.SDL_ClearQueuedAudio(audio_device);
         }
         sdl.SDL_PauseAudioDevice(audio_device, 1);
     }
