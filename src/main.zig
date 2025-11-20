@@ -117,12 +117,12 @@ pub fn main() !void {
     };
     defer sdl.SDL_DestroyTexture(screen_texture);
 
-    var desired_audio_spec: sdl.SDL_AudioSpec = .{};
-    desired_audio_spec.freq = 44000;
-    desired_audio_spec.format = sdl.AUDIO_S32LSB;
-    desired_audio_spec.samples = 512;
+    var audio_spec: sdl.SDL_AudioSpec = .{};
+    audio_spec.freq = 44100;
+    audio_spec.format = sdl.AUDIO_S32LSB;
+    audio_spec.samples = 1024;
 
-    const audio_device = sdl.SDL_OpenAudioDevice(null, 0, &desired_audio_spec, null, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE);
+    const audio_device = sdl.SDL_OpenAudioDevice(null, 0, &audio_spec, null, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE);
     defer sdl.SDL_CloseAudioDevice(audio_device);
 
     sdl.SDL_PauseAudioDevice(audio_device, 0);
@@ -194,15 +194,17 @@ pub fn main() !void {
         }
         if (zig8.should_beep()) {
             sdl.SDL_PauseAudioDevice(audio_device, 0);
-            var buf: [2400]u8 = undefined;
+            const alloc = std.heap.page_allocator;
+            var buf = try alloc.alloc(f64, @as(usize, @as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)));
+            defer alloc.free(buf);
 
-            for (0..2400 / 50) |_| {
-                for (0..buf.len - 1) |j| {
-                    buf[j] = @as(u8, @intCast(j % 255)) / 2;
-                }
+            var samp: f64 = 0.0;
+            for (0..@as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)) |i| {
+                buf[i] = std.math.sin(samp * 2.0) * 5000.0;
+                samp += 0.010;
             }
 
-            _ = sdl.SDL_QueueAudio(audio_device, &buf, buf.len);
+            _ = sdl.SDL_QueueAudio(audio_device, @ptrCast(buf.ptr), @as(u32, @intCast(buf.len)));
             sdl.SDL_PauseAudioDevice(audio_device, 1);
         }
         render(screen, renderer, screen_texture);
