@@ -63,6 +63,8 @@ const palette_dark = [_]u32{
 var selected_palette: usize = 0;
 
 pub fn main() !void {
+    const alloc = std.heap.page_allocator;
+
     var args = std.process.args();
     defer args.deinit();
 
@@ -127,10 +129,17 @@ pub fn main() !void {
 
     sdl.SDL_PauseAudioDevice(audio_device, 0);
 
+    const audio_spawn_cfg = std.Thread.SpawnConfig{
+        .allocator = alloc,
+    };
+
     zig8.initialize(prng);
     try zig8.load(rom_path);
 
     var running = true;
+
+    const audio_thread = try std.Thread.spawn(audio_spawn_cfg, do_audio, .{ audio_spec, audio_device, &running });
+    defer audio_thread.join();
 
     last_update_time = get_current_ms();
 
@@ -192,21 +201,7 @@ pub fn main() !void {
             last_update_time = current_time;
             zig8.cycle();
         }
-        if (zig8.should_beep()) {
-            sdl.SDL_PauseAudioDevice(audio_device, 0);
-            const alloc = std.heap.page_allocator;
-            var buf = try alloc.alloc(f64, @as(usize, @as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)));
-            defer alloc.free(buf);
 
-            var samp: f64 = 0.0;
-            for (0..@as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)) |i| {
-                buf[i] = std.math.sin(samp * 2.0) * 5000.0;
-                samp += 0.010;
-            }
-
-            _ = sdl.SDL_QueueAudio(audio_device, @ptrCast(buf.ptr), @as(u32, @intCast(buf.len)));
-            sdl.SDL_PauseAudioDevice(audio_device, 1);
-        }
         render(screen, renderer, screen_texture);
     }
 }
@@ -378,6 +373,26 @@ fn render_present(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, back_buffer
 
     if (program_id != 0 and toggle_shader) {
         glUseProgram.?(@intCast(old_program_id));
+    }
+}
+
+fn do_audio(audio_spec: sdl.SDL_AudioSpec, audio_device: sdl.SDL_AudioDeviceID, running: *bool) !void {
+    while (running.*) {
+        if (zig8.should_beep()) {
+            sdl.SDL_PauseAudioDevice(audio_device, 0);
+            const alloc = std.heap.page_allocator;
+            var buf = try alloc.alloc(f64, @as(usize, @as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)));
+            defer alloc.free(buf);
+
+            var samp: f64 = 0.0;
+            for (0..@as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)) |i| {
+                buf[i] = std.math.sin(samp * 2.0) * 5000.0;
+                samp += 0.010;
+            }
+
+            _ = sdl.SDL_QueueAudio(audio_device, @ptrCast(buf.ptr), @as(u32, @intCast(buf.len)));
+        }
+        sdl.SDL_PauseAudioDevice(audio_device, 1);
     }
 }
 
