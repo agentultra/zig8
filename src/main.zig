@@ -122,7 +122,7 @@ pub fn main() !void {
     var audio_spec: sdl.SDL_AudioSpec = .{};
     audio_spec.freq = 44100;
     audio_spec.format = sdl.AUDIO_S32LSB;
-    audio_spec.samples = 1024;
+    audio_spec.samples = 512;
 
     const audio_device = sdl.SDL_OpenAudioDevice(null, 0, &audio_spec, null, sdl.SDL_AUDIO_ALLOW_ANY_CHANGE);
     defer sdl.SDL_CloseAudioDevice(audio_device);
@@ -377,24 +377,23 @@ fn render_present(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, back_buffer
 }
 
 fn do_audio(audio_spec: sdl.SDL_AudioSpec, audio_device: sdl.SDL_AudioDeviceID, running: *bool) !void {
+    const alloc = std.heap.page_allocator;
+    var buf = try alloc.alloc(f64, @as(usize, @as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)));
+    defer alloc.free(buf);
+
     while (running.*) {
         if (zig8.should_beep()) {
             sdl.SDL_PauseAudioDevice(audio_device, 0);
-            const alloc = std.heap.page_allocator;
-            var buf = try alloc.alloc(f64, @as(usize, @as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)));
-            defer alloc.free(buf);
-
             var samp: f64 = 0.0;
             for (0..@as(usize, @intCast(audio_spec.freq)) * @as(usize, 3)) |i| {
-                buf[i] = std.math.sin(samp * 2.0) * 5000.0;
+                buf[i] = std.math.sin(samp * 1.3) * 5000.0;
                 samp += 0.010;
             }
-
             _ = sdl.SDL_QueueAudio(audio_device, @ptrCast(buf.ptr), @as(u32, @intCast(buf.len)));
         } else {
             sdl.SDL_ClearQueuedAudio(audio_device);
+            sdl.SDL_PauseAudioDevice(audio_device, 1);
         }
-        sdl.SDL_PauseAudioDevice(audio_device, 1);
     }
 }
 
