@@ -110,7 +110,7 @@ pub fn main() !void {
     const screen_texture = sdl.SDL_CreateTexture(
         renderer,
         sdl.SDL_PIXELFORMAT_RGBA32,
-        sdl.SDL_TEXTUREACCESS_TARGET,
+        sdl.SDL_TEXTUREACCESS_STREAMING,
         screen_w,
         screen_h,
     ) orelse {
@@ -320,7 +320,16 @@ fn updatekeypresses(kevt: sdl.SDL_KeyboardEvent) void {
 
 fn render(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_Texture) void {
     _ = sdl.SDL_RenderClear(renderer);
-    var pixels: [2048]u32 = undefined;
+    var pixels: []u32 = undefined;
+    var pitch: c_int = undefined;
+
+    const locked = sdl.SDL_LockTexture(texture, null, @ptrCast(&pixels), &pitch);
+
+    if (locked != 0) {
+        sdl.SDL_Log("Unable to lock texture for update: %s", sdl.SDL_GetError());
+        return;
+    }
+
     for (0..screen_w) |x| {
         for (0..screen_h) |y| {
             const pixel_active = zig8.gfx[(screen_w * y) + x] == 1;
@@ -331,7 +340,8 @@ fn render(win: *sdl.SDL_Window, renderer: *sdl.SDL_Renderer, texture: *sdl.SDL_T
             }
         }
     }
-    _ = sdl.SDL_UpdateTexture(texture, null, &pixels, screen_w * 4);
+
+    _ = sdl.SDL_UnlockTexture(texture);
     render_present(win, renderer, texture);
     const display_rect: sdl.SDL_Rect = .{ .x = 0, .y = 0, .w = @as(c_int, @intCast(display_w)), .h = @as(c_int, @intCast(display_h)) };
     _ = sdl.SDL_RenderCopy(renderer, texture, null, &display_rect);
